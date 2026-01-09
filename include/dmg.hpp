@@ -23,6 +23,8 @@ public:
   virtual void plotPixel(int x, int y, uint8_t data) { return; }
 
 private:
+  void scanline(uint8_t y);
+
   const int maxRomSize = 0x8000;
   uint8_t* rom;
   uint8_t* vram;
