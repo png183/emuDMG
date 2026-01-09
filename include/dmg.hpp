@@ -25,6 +25,11 @@ public:
 private:
   void scanline(uint8_t y);
 
+  uint8_t lcdc;  //todo: bits 7-5, 2-1
+  uint8_t scy;
+  uint8_t scx;
+  uint8_t lyc;
+
   const int maxRomSize = 0x8000;
   uint8_t* rom;
   uint8_t* vram;

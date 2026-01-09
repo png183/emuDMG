@@ -51,7 +51,7 @@ public:
   }
 
 private:
-  const int scale = 6;
+  const int scale = 3;
   const int width = 160;
   const int height = 144;
   uint32_t* framebuffer;

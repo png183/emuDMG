@@ -28,6 +28,7 @@ uint8_t DMG::read8(uint16_t addr) {
 
   //todo: I/O
   if(addr == 0xff0f) return IF();  //IF
+  if(addr == 0xff40) return lcdc;  //LCDC
   if(addr == 0xff44) return 144;  //todo: LY
   if(addr >= 0xff80 && addr < 0xffff) return hram[addr & 0x7f];
   printf("TODO: Reading address 0x%04x\n", addr);
@@ -63,6 +64,10 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   if(addr == 0xff01) return;  //todo: SB
   if(addr == 0xff02) return;  //todo: SC
   if(addr == 0xff0f) { setIF(data); return; }  //IF
+  if(addr == 0xff40) { lcdc = data; return; }  //LCDC
+  if(addr == 0xff42) { scy = data; return; }  //SCY
+  if(addr == 0xff43) { scx = data; return; }  //SCX
+  if(addr == 0xff45) { lyc = data; return; }  //LYC
   if(addr >= 0xff80 && addr < 0xffff) { hram[addr & 0x7f] = data; return; }
   if(addr == 0xffff) { setIE(data); return; }  //IE
   printf("TODO: Writing 0x%02x to address 0x%04x\n", data, addr);
@@ -70,30 +75,40 @@ void DMG::write8(uint16_t addr, uint8_t data) {
 
 void DMG::frame() {
   for(uint8_t y = 0; y < 154; y++) {
-    scanline(y);
+    if(y == lyc) setIF(IF() | 0x02);  //todo: allow disabling and setting alternate conditions
     for(int i = 0; i < 456; i++) instruction();
+    scanline(y);
   }
 }
 
 void DMG::scanline(uint8_t y) {
   if(y >= 144) return;
 
-  uint8_t tileY = y >> 3;
-  uint8_t fineY = y & 0x07;
+  //determine rendering Y-position
+  uint8_t dataY = y + scy;
+  uint8_t tileY = dataY >> 3;
+  uint8_t fineY = dataY & 0x07;
 
-  //render all tiles on scanline
-  for(uint8_t tileX = 0; tileX < 20; tileX++) {
-    uint8_t tile = vram[0x1800 | tileY << 5 | tileX];
-    uint8_t tileDataLo = vram[tile << 4 | fineY << 1 | 0];
-    uint8_t tileDataHi = vram[tile << 4 | fineY << 1 | 1];
+  //clear pixels
+  for(uint8_t x = 0; x < 160; x++) plotPixel(x, y, 0);
 
-    //render pixels in tile strip
-    for(uint8_t fineX = 0; fineX < 8; fineX++) {
-      uint8_t x = tileX << 3 | fineX;
-      uint8_t pxLo = (tileDataLo >> (fineX ^ 0x07)) & 1;
-      uint8_t pxHi = (tileDataHi >> (fineX ^ 0x07)) & 1;
-      plotPixel(x, y, pxHi << 1 | pxLo);
-    }
+  //render background
+  if(!(lcdc & 0x01)) return;
+  for(uint8_t x = 0; x < 160; x++) {
+    //determine rendering X-position
+    uint8_t dataX = x + scx;
+    uint8_t tileX = dataX >> 3;
+    uint8_t fineX = dataX & 0x07;
+
+    //render pixel
+    uint8_t tile = vram[((lcdc & 0x08) ? 0x1c00 : 0x1800) | tileY << 5 | tileX];
+    uint16_t tileAddr = tile << 4 | fineY << 1;
+    if(!(lcdc & 0x10) && !(tile & 0x80)) tileAddr += 0x1000;
+    uint8_t tileDataLo = vram[tileAddr | 0];
+    uint8_t tileDataHi = vram[tileAddr | 1];
+    uint8_t pxLo = (tileDataLo >> (fineX ^ 0x07)) & 1;
+    uint8_t pxHi = (tileDataHi >> (fineX ^ 0x07)) & 1;
+    plotPixel(x, y, pxHi << 1 | pxLo);
   }
 }
 
