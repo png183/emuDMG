@@ -25,10 +25,16 @@ public:
 private:
   void scanline(uint8_t y);
 
-  uint8_t lcdc;  //todo: bits 7-5, 2-1
+  // PPU registers
+  uint8_t lcdc;  // todo: bits 7-6, 2-1
   uint8_t scy;
   uint8_t scx;
   uint8_t lyc;
+  uint8_t wy;
+  uint8_t wx;
+
+  // PPU internal state
+  uint8_t yWinCount;
 
   const int maxRomSize = 0x8000;
   uint8_t* rom;
