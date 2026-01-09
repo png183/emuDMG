@@ -27,7 +27,8 @@ uint8_t DMG::read8(uint16_t addr) {
   }
 
   //todo: I/O
-  if(addr == 0xff44) return 144;  //todo: don't hardcode
+  if(addr == 0xff0f) return IF();  //IF
+  if(addr == 0xff44) return 144;  //todo: LY
   if(addr >= 0xff80 && addr < 0xffff) return hram[addr & 0x7f];
   printf("TODO: Reading address 0x%04x\n", addr);
 //  exit(0);
@@ -36,8 +37,8 @@ uint8_t DMG::read8(uint16_t addr) {
 
 void DMG::write8(uint16_t addr, uint8_t data) {
   if(addr < 0x8000) {
-    printf("TODO: Writing 0x%02x to address 0x%04x\n", data, addr);
-    exit(0);
+//    printf("TODO: Writing 0x%02x to address 0x%04x\n", data, addr);
+//    exit(0);
     return;
   }
   if(addr < 0xa000) { vram[addr & 0x1fff] = data; return; }
@@ -59,7 +60,11 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   }
 
   //todo: I/O
+  if(addr == 0xff01) return;  //todo: SB
+  if(addr == 0xff02) return;  //todo: SC
+  if(addr == 0xff0f) { setIF(data); return; }  //IF
   if(addr >= 0xff80 && addr < 0xffff) { hram[addr & 0x7f] = data; return; }
+  if(addr == 0xffff) { setIE(data); return; }  //IE
   printf("TODO: Writing 0x%02x to address 0x%04x\n", data, addr);
 }
 

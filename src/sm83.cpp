@@ -13,9 +13,19 @@ void SM83::reset() {
   l = 0x4d;
   pc = 0x0100;
   sp = 0xfffe;
+  ime = false;
 }
 
 void SM83::instruction() {
+  if(ime && (_if & _ie)) {
+    ime = false;
+    if(_if & 0x01) { _if &= ~0x01; RST(0x0040); return; }
+    if(_if & 0x02) { _if &= ~0x02; RST(0x0048); return; }
+    if(_if & 0x04) { _if &= ~0x04; RST(0x0050); return; }
+    if(_if & 0x08) { _if &= ~0x08; RST(0x0058); return; }
+    if(_if & 0x10) { _if &= ~0x10; RST(0x0060); return; }
+  }
+
   uint8_t ir = fetch8();
   switch(ir) {
 
@@ -269,7 +279,7 @@ void SM83::instruction() {
   case 0xf0: a = read8(0xff00 + fetch8());  return;  // LDH A,(n)
   case 0xf1: f = pop8() & 0xf0; a = pop8(); return;  // POP AF
   case 0xf2: a = read8(0xff00 + c);         return;  // LDH A,(C)
-  case 0xf3: /* TODO */                     return;  // DI
+  case 0xf3: DI();                          return;  // DI
   // TODO: HCF
   case 0xf5: push8(a); push8(f);            return;  // PUSH AF
   case 0xf6: OR(fetch8());                  return;  // OR n
@@ -277,7 +287,7 @@ void SM83::instruction() {
   case 0xf8: setHL(addSP());                return;  // LD HL,SP+e
   case 0xf9: sp = HL();                     return;  // LD SP,HL
   case 0xfa: a = read8(fetch16());          return;  // LD A,(nn)
-  case 0xfb: /* TODO */                     return;  // EI
+  case 0xfb: EI();                          return;  // EI
   // TODO: HCF
   // TODO: HCF
   case 0xfe: CP(fetch8());                  return;  // CP n
@@ -559,8 +569,7 @@ void SM83::instructionCB() {
 
   }
 
-  printf("Unimplemented CB-prefixed instruction 0x%02x\n", ir);
-  exit(0);
+  //unreachable
 }
 
 void SM83::write16(uint16_t addr, uint16_t data) {
@@ -883,8 +892,16 @@ void SM83::RST(uint16_t addr) {
 }
 
 void SM83::RETI() {
-  // TODO: Re-enable interrupts here
+  ime = true;
   pc = pop16();
+}
+
+void SM83::DI() {
+  ime = false;
+}
+
+void SM83::EI() {
+  ime = true;
 }
 
 uint8_t SM83::RLC(uint8_t data) {

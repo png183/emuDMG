@@ -6,6 +6,10 @@ class SM83 {
 public:
   void reset();
   void instruction();
+  void setIF(uint8_t data) { _if = data & 0x1f; }
+  void setIE(uint8_t data) { _ie = data & 0x1f; }
+  uint8_t IF() { return _if; }
+  uint8_t IE() { return _ie; }
   virtual uint8_t read8(uint16_t addr) { return 0xff; }
   virtual void write8(uint16_t addr, uint8_t data) { return; }
 
@@ -59,8 +63,8 @@ private:
   void CALL(bool cond);
   void RST(uint16_t addr);
   void RETI();
-  void ADD_SP_e();
-  void LD_HL_SP_e();
+  void DI();
+  void EI();
 
   uint8_t RLC(uint8_t data);
   uint8_t RRC(uint8_t data);
@@ -84,5 +88,8 @@ private:
   uint8_t l;
   uint16_t pc;
   uint16_t sp;
+  bool ime;
+  uint8_t _if;
+  uint8_t _ie;
 };
 
