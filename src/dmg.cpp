@@ -54,11 +54,8 @@ void DMG::write8(uint16_t addr, uint8_t data) {
     exit(0);
     return;
   }
-  if(addr < 0xff00) {
-//    printf("TODO: Writing 0x%02x to address 0x%04x\n", data, addr);
-//    exit(0);
-    return;
-  }
+  if(addr < 0xfea0) { oam[addr & 0xff] = data; return; }
+  if(addr < 0xff00) return;  //unused part of OAM region
 
   //todo: I/O
   if(addr == 0xff01) return;  //todo: SB
@@ -68,6 +65,8 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   if(addr == 0xff42) { scy = data; return; }  //SCY
   if(addr == 0xff43) { scx = data; return; }  //SCX
   if(addr == 0xff45) { lyc = data; return; }  //LYC
+  if(addr == 0xff48) { obp0 = data; return; }  //OBP0
+  if(addr == 0xff49) { obp1 = data; return; }  //OBP1
   if(addr == 0xff4a) { wy = data; return; }  //WY
   if(addr == 0xff4b) { wx = data; return; }  //WX
   if(addr >= 0xff80 && addr < 0xffff) { hram[addr & 0x7f] = data; return; }
@@ -88,10 +87,19 @@ void DMG::scanline(uint8_t y) {
   if(y >= 144) return;
 
   //clear pixels
-  for(uint8_t x = 0; x < 160; x++) plotPixel(x, y, 0);
+  for(uint8_t x = 0; x < 160; x++) lineBuffer[x] = 0;
 
   //render background
-  if(!(lcdc & 0x01)) return;
+  if(lcdc & 0x01) renderBackground(y);
+
+  //render sprites
+  if(lcdc & 0x02) renderSprites(y);
+
+  //output scanline
+  for(int x = 0; x < 160; x++) plotPixel(x, y, lineBuffer[x]);
+}
+
+void DMG::renderBackground(uint8_t y) {
   for(uint8_t x = 0; x < 160; x++) {
     //determine rendering Y-position
     uint8_t dataY = y + scy;
@@ -111,7 +119,7 @@ void DMG::scanline(uint8_t y) {
     uint8_t tileDataHi = vram[tileAddr | 1];
     uint8_t pxLo = (tileDataLo >> (fineX ^ 0x07)) & 1;
     uint8_t pxHi = (tileDataHi >> (fineX ^ 0x07)) & 1;
-    plotPixel(x, y, pxHi << 1 | pxLo);
+    lineBuffer[x] = pxHi << 1 | pxLo;
   }
 
   //render window
@@ -137,8 +145,59 @@ void DMG::scanline(uint8_t y) {
     uint8_t tileDataHi = vram[tileAddr | 1];
     uint8_t pxLo = (tileDataLo >> (fineX ^ 0x07)) & 1;
     uint8_t pxHi = (tileDataHi >> (fineX ^ 0x07)) & 1;
-    plotPixel(x, y, pxHi << 1 | pxLo);
+    lineBuffer[x] = pxHi << 1 | pxLo;
   }
   if(wx < 167) yWinCount++;
+}
+
+void DMG::renderSprites(uint8_t y) {
+  //calculate sprite height
+  uint8_t spriteHeight = (lcdc & 0x04) ? 16 : 8;
+
+  //perform OAM scan
+  uint8_t spriteBuffer[40];
+  uint8_t bufSize = 0;
+  for(uint8_t i = 0; i < 160; i += 4) {
+    uint8_t dataY = y + 16 - oam[i + 0];
+    if(dataY >= spriteHeight) continue;
+    spriteBuffer[bufSize + 0] = oam[i + 0];
+    spriteBuffer[bufSize + 1] = oam[i + 1];
+    spriteBuffer[bufSize + 2] = oam[i + 2];
+    spriteBuffer[bufSize + 3] = oam[i + 3];
+    bufSize += 4;
+    if(bufSize >= 40) break;
+  }
+
+  //render sprites from buffer
+  //todo: handle priority between sprites
+  for(uint8_t i = 0; i < bufSize; i += 4) {
+    //fetch tile data
+    uint8_t dataY = y + 16 - spriteBuffer[i + 0];
+    uint8_t dataX = spriteBuffer[i + 1];
+    uint8_t tile = spriteBuffer[i + 2];
+    uint8_t attributes = spriteBuffer[i + 3];
+    uint8_t fineY = dataY & (spriteHeight - 1);
+    if(attributes & 0x40) fineY ^= (spriteHeight - 1);
+    if(lcdc & 0x04) tile &= ~1;  //mask low bit of tile ID for 8x16 sprites
+    uint16_t tileAddr = tile << 4 | fineY << 1;
+    uint8_t tileDataLo = vram[tileAddr | 0];
+    uint8_t tileDataHi = vram[tileAddr | 1];
+
+    //render pixels
+    for(uint8_t fineX = 0; fineX < 8; fineX++) {
+      //determine rendering X-position
+      uint8_t x = dataX - 8 + fineX;
+      if(x >= 160) continue;
+
+      //render pixel
+      uint8_t pxIndex = fineX;
+      if(!(attributes & 0x20)) pxIndex ^= 0x07;
+      uint8_t pxLo = (tileDataLo >> pxIndex) & 1;
+      uint8_t pxHi = (tileDataHi >> pxIndex) & 1;
+      uint8_t palette = pxHi << 1 | pxLo;
+      uint8_t colour = (((attributes & 0x10) ? obp1 : obp0) >> (palette  << 1)) & 0x03;
+      if(palette && (!lineBuffer[x] || !(attributes & 0x80))) lineBuffer[x] = colour;
+    }
+  }
 }
 
