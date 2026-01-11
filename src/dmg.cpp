@@ -27,6 +27,7 @@ uint8_t DMG::read8(uint16_t addr) {
   }
 
   //todo: I/O
+  if(addr == 0xff05) return tima;  //TIMA
   if(addr == 0xff0f) return IF();  //IF
   if(addr == 0xff40) return lcdc;  //LCDC
   if(addr == 0xff44) return 144;  //todo: LY
@@ -61,6 +62,10 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   //todo: I/O
   if(addr == 0xff01) return;  //todo: SB
   if(addr == 0xff02) return;  //todo: SC
+  if(addr == 0xff04) { div = 0x0000; return; }  //DIV
+  if(addr == 0xff05) { tima = data; return; }  //TIMA
+  if(addr == 0xff06) { tma = data; return; }  //TMA
+  if(addr == 0xff07) { tac = data; return; }  //TAC
   if(addr == 0xff0f) { setIF(data); return; }  //IF
   if(addr == 0xff40) { lcdc = data; return; }  //LCDC
   if(addr == 0xff41) { stat = data; return; }  //STAT
@@ -76,11 +81,37 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   printf("TODO: Writing 0x%02x to address 0x%04x\n", data, addr);
 }
 
+void DMG::cycle() {
+  //run 1 M-cycle
+  div++;
+
+  if(tac & 0x04) {
+    //tick timer if condition is met
+    uint16_t divMask;
+    switch(tac & 0x03) {
+    case 0x00: divMask = 0x00ff; break;
+    case 0x01: divMask = 0x0003; break;
+    case 0x02: divMask = 0x000f; break;
+    case 0x03: divMask = 0x003f; break;
+    }
+    if(!(div & divMask)) {
+      tima++;
+      if(!tima) {
+        tima = tma;
+        setIF(IF() | 0x04);
+      }
+    }
+  }
+}
+
 void DMG::frame() {
   yWinCount = 0;
   for(uint8_t y = 0; y < 154; y++) {
     if((stat & 0x40) && y == lyc) setIF(IF() | 0x02);
-    for(int i = 0; i < 456; i++) instruction();
+    for(int i = 0; i < 456; i++) {
+      cycle();  //todo: remove 1CPI assumption
+      instruction();
+    }
     scanline(y);
   }
 }

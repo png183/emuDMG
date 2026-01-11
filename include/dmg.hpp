@@ -25,6 +25,7 @@ public:
   virtual void plotPixel(int x, int y, uint8_t data) { return; }
 
 private:
+  void cycle();
   void scanline(uint8_t y);
   void renderBackground(uint8_t y);
   void renderSprites(uint8_t y);
@@ -45,6 +46,12 @@ private:
 
   // Scanline renderer state
   uint8_t lineBuffer[160];
+
+  // Timer registers
+  uint16_t div;
+  uint8_t tima;
+  uint8_t tma;
+  uint8_t tac;
 
   // Memory
   const int maxRomSize = 0x8000;
