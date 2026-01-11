@@ -10,6 +10,7 @@ public:
   void setIE(uint8_t data) { _ie = data & 0x1f; }
   uint8_t IF() { return _if; }
   uint8_t IE() { return _ie; }
+  virtual void idle() { return; }
   virtual uint8_t read8(uint16_t addr) { return 0xff; }
   virtual void write8(uint16_t addr, uint8_t data) { return; }
 

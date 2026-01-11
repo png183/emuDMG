@@ -19,6 +19,7 @@ public:
   }
 
   void loadROM(char* fname);
+  void idle() override;
   uint8_t read8(uint16_t addr) override;
   void write8(uint16_t addr, uint8_t data) override;
   void frame();
@@ -35,6 +36,7 @@ private:
   uint8_t stat;  // todo: bits 5-0
   uint8_t scy;
   uint8_t scx;
+  uint8_t ly;
   uint8_t lyc;
   uint8_t obp0;
   uint8_t obp1;
@@ -42,6 +44,7 @@ private:
   uint8_t wx;
 
   // PPU internal state
+  int scanCycle;
   uint8_t yWinCount;
 
   // Scanline renderer state

@@ -7,7 +7,13 @@ void DMG::loadROM(char* fname) {
   fclose(f);
 }
 
+void DMG::idle() {
+  cycle();
+}
+
 uint8_t DMG::read8(uint16_t addr) {
+  cycle();
+
   if(addr < 0x8000) return rom[addr];
   if(addr < 0xc000) {
     printf("TODO: Reading address 0x%04x\n", addr);
@@ -20,6 +26,7 @@ uint8_t DMG::read8(uint16_t addr) {
     exit(0);
     return 0xff;
   }
+  if(addr < 0xfea0) { return oam[addr & 0xff]; }
   if(addr < 0xff00) {
     printf("TODO: Reading address 0x%04x\n", addr);
     exit(0);
@@ -30,7 +37,7 @@ uint8_t DMG::read8(uint16_t addr) {
   if(addr == 0xff05) return tima;  //TIMA
   if(addr == 0xff0f) return IF();  //IF
   if(addr == 0xff40) return lcdc;  //LCDC
-  if(addr == 0xff44) return 144;  //todo: LY
+  if(addr == 0xff44) return ly;  //LY
   if(addr >= 0xff80 && addr < 0xffff) return hram[addr & 0x7f];
   if(addr == 0xffff) return IE();  //IE
   printf("TODO: Reading address 0x%04x\n", addr);
@@ -39,6 +46,8 @@ uint8_t DMG::read8(uint16_t addr) {
 }
 
 void DMG::write8(uint16_t addr, uint8_t data) {
+  cycle();
+
   if(addr < 0x8000) {
 //    printf("TODO: Writing 0x%02x to address 0x%04x\n", data, addr);
 //    exit(0);
@@ -84,6 +93,7 @@ void DMG::write8(uint16_t addr, uint8_t data) {
 void DMG::cycle() {
   //run 1 M-cycle
   div++;
+  scanCycle++;
 
   if(tac & 0x04) {
     //tick timer if condition is met
@@ -106,13 +116,13 @@ void DMG::cycle() {
 
 void DMG::frame() {
   yWinCount = 0;
-  for(uint8_t y = 0; y < 154; y++) {
-    if((stat & 0x40) && y == lyc) setIF(IF() | 0x02);
-    for(int i = 0; i < 456; i++) {
-      cycle();  //todo: remove 1CPI assumption
+  for(ly = 0; ly < 154; ly++) {
+    if((stat & 0x40) && ly == lyc) setIF(IF() | 0x02);
+    while(scanCycle < 456) {
       instruction();
     }
-    scanline(y);
+    scanCycle -= 456;
+    scanline(ly);
   }
 }
 

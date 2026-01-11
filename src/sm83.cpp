@@ -33,7 +33,7 @@ void SM83::instruction() {
   case 0x00:                                 return;  // NOP
   case 0x01: c = fetch8(); b = fetch8();     return;  // LD BC,nn
   case 0x02: write8(b << 8 | c, a);          return;  // LD (BC),A
-  case 0x03: if(!(++c)) b++;                 return;  // INC BC
+  case 0x03: if(!(++c)) b++; idle();         return;  // INC BC
   case 0x04: b = INC(b);                     return;  // INC B
   case 0x05: b = DEC(b);                     return;  // DEC B
   case 0x06: b = fetch8();                   return;  // LD B,n
@@ -41,7 +41,7 @@ void SM83::instruction() {
   case 0x08: write16(fetch16(), sp);         return;  // LD (nn),SP
   case 0x09: ADD16(b << 8 | c);              return;  // ADD HL,BC
   case 0x0a: a = read8(b << 8 | c);          return;  // LD A,(BC)
-  case 0x0b: if(!(c--)) b--;                 return;  // DEC BC
+  case 0x0b: idle(); if(!(c--)) b--;         return;  // DEC BC
   case 0x0c: c = INC(c);                     return;  // INC C
   case 0x0d: c = DEC(c);                     return;  // DEC C
   case 0x0e: c = fetch8();                   return;  // LD C,n
@@ -49,7 +49,7 @@ void SM83::instruction() {
   // TODO: STOP
   case 0x11: e = fetch8(); d = fetch8();     return;  // LD DE,nn
   case 0x12: write8(d << 8 | e, a);          return;  // LD (DE),A
-  case 0x13: if(!(++e)) d++;                 return;  // INC DE
+  case 0x13: if(!(++e)) d++; idle();         return;  // INC DE
   case 0x14: d = INC(d);                     return;  // INC D
   case 0x15: d = DEC(d);                     return;  // DEC D
   case 0x16: d = fetch8();                   return;  // LD D,n
@@ -57,7 +57,7 @@ void SM83::instruction() {
   case 0x18: JR(true);                       return;  // JR e
   case 0x19: ADD16(d << 8 | e);              return;  // ADD HL,DE
   case 0x1a: a = read8(d << 8 | e);          return;  // LD A,(DE)
-  case 0x1b: if(!(e--)) d--;                 return;  // DEC DE
+  case 0x1b: idle(); if(!(e--)) d--;         return;  // DEC DE
   case 0x1c: e = INC(e);                     return;  // INC E
   case 0x1d: e = DEC(e);                     return;  // DEC E
   case 0x1e: e = fetch8();                   return;  // LD E,n
@@ -65,7 +65,7 @@ void SM83::instruction() {
   case 0x20: JR(!ZF());                      return;  // JR NZ,e
   case 0x21: l = fetch8(); h = fetch8();     return;  // LD HL,nn
   case 0x22: write8(incHL(), a);             return;  // LD (HL+),A
-  case 0x23: if(!(++l)) h++;                 return;  // INC HL
+  case 0x23: if(!(++l)) h++; idle();         return;  // INC HL
   case 0x24: h = INC(h);                     return;  // INC H
   case 0x25: h = DEC(h);                     return;  // DEC H
   case 0x26: h = fetch8();                   return;  // LD H,n
@@ -73,7 +73,7 @@ void SM83::instruction() {
   case 0x28: JR(ZF());                       return;  // JR Z,e
   case 0x29: ADD16(HL());                    return;  // ADD HL,HL
   case 0x2a: a = read8(incHL());             return;  // LD A,(HL+)
-  case 0x2b: if(!(l--)) h--;                 return;  // DEC HL
+  case 0x2b: idle(); if(!(l--)) h--;         return;  // DEC HL
   case 0x2c: l = INC(l);                     return;  // INC L
   case 0x2d: l = DEC(l);                     return;  // DEC L
   case 0x2e: l = fetch8();                   return;  // LD L,n
@@ -81,7 +81,7 @@ void SM83::instruction() {
   case 0x30: JR(!CF());                      return;  // JR NC,e
   case 0x31: sp = fetch16();                 return;  // LD SP,nn
   case 0x32: write8(decHL(), a);             return;  // LD (HL-),A
-  case 0x33: sp++;                           return;  // INC SP
+  case 0x33: sp++; idle();                   return;  // INC SP
   case 0x34: write8(HL(), INC(read8(HL()))); return;  // INC (HL)
   case 0x35: write8(HL(), DEC(read8(HL()))); return;  // DEC (HL)
   case 0x36: write8(HL(), fetch8());         return;  // LD (HL),n
@@ -89,7 +89,7 @@ void SM83::instruction() {
   case 0x38: JR(CF());                       return;  // JR C,e
   case 0x39: ADD16(sp);                      return;  // ADD HL,SP
   case 0x3a: a = read8(decHL());             return;  // LD A,(HL-)
-  case 0x3b: sp--;                           return;  // DEC SP
+  case 0x3b: idle(); sp--;                   return;  // DEC SP
   case 0x3c: a = INC(a);                     return;  // INC A
   case 0x3d: a = DEC(a);                     return;  // DEC A
   case 0x3e: a = fetch8();                   return;  // LD A,n
@@ -228,15 +228,15 @@ void SM83::instruction() {
   case 0xbf: CP(a);            return;  // CP A
 
   // c0-ff: control flow
-  case 0xc0: RET(!ZF());                    return;  // RET NZ
+  case 0xc0: idle(); RET(!ZF());            return;  // RET NZ
   case 0xc1: c = pop8(); b = pop8();        return;  // POP BC
   case 0xc2: JP(!ZF());                     return;  // JP NZ,nn
   case 0xc3: JP(true);                      return;  // JP nn
   case 0xc4: CALL(!ZF());                   return;  // CALL NZ,nn
-  case 0xc5: push8(b); push8(c);            return;  // PUSH BC
+  case 0xc5: idle(); push8(b); push8(c);    return;  // PUSH BC
   case 0xc6: ADD(fetch8());                 return;  // ADD n
   case 0xc7: RST(0x0000);                   return;  // RST 0x00
-  case 0xc8: RET(ZF());                     return;  // RET Z
+  case 0xc8: idle(); RET(ZF());             return;  // RET Z
   case 0xc9: RET(true);                     return;  // RET
   case 0xca: JP(ZF());                      return;  // JP Z,nn
   case 0xcb: instructionCB();               return;  // CB-prefixed instruction
@@ -244,15 +244,15 @@ void SM83::instruction() {
   case 0xcd: CALL(true);                    return;  // CALL nn
   case 0xce: ADC(fetch8());                 return;  // ADC n
   case 0xcf: RST(0x0008);                   return;  // RST 0x08
-  case 0xd0: RET(!CF());                    return;  // RET NC
+  case 0xd0: idle(); RET(!CF());            return;  // RET NC
   case 0xd1: e = pop8(); d = pop8();        return;  // POP DE
   case 0xd2: JP(!CF());                     return;  // JP NC,nn
   // TODO: HCF
   case 0xd4: CALL(!CF());                   return;  // CALL NC,nn
-  case 0xd5: push8(d); push8(e);            return;  // PUSH DE
+  case 0xd5: idle(); push8(d); push8(e);    return;  // PUSH DE
   case 0xd6: SUB(fetch8());                 return;  // SUB n
   case 0xd7: RST(0x0010);                   return;  // RST 0x10
-  case 0xd8: RET(CF());                     return;  // RET C
+  case 0xd8: idle(); RET(CF());             return;  // RET C
   case 0xd9: RETI();                        return;  // RETI
   case 0xda: JP(CF());                      return;  // JP C,nn
   // TODO: HCF
@@ -265,10 +265,10 @@ void SM83::instruction() {
   case 0xe2: write8(0xff00 + c, a);         return;  // LDH (C),A
   // TODO: HCF
   // TODO: HCF
-  case 0xe5: push8(h); push8(l);            return;  // PUSH HL
+  case 0xe5: idle(); push8(h); push8(l);    return;  // PUSH HL
   case 0xe6: AND(fetch8());                 return;  // AND n
   case 0xe7: RST(0x0020);                   return;  // RST 0x20
-  case 0xe8: sp = addSP();                  return;  // ADD SP,e
+  case 0xe8: sp = addSP(); idle();          return;  // ADD SP,e
   case 0xe9: pc = HL();                     return;  // JP HL
   case 0xea: write8(fetch16(), a);          return;  // LD (nn),A
   // TODO: HCF
@@ -281,11 +281,11 @@ void SM83::instruction() {
   case 0xf2: a = read8(0xff00 + c);         return;  // LDH A,(C)
   case 0xf3: DI();                          return;  // DI
   // TODO: HCF
-  case 0xf5: push8(a); push8(f);            return;  // PUSH AF
+  case 0xf5: idle(); push8(a); push8(f);    return;  // PUSH AF
   case 0xf6: OR(fetch8());                  return;  // OR n
   case 0xf7: RST(0x0030);                   return;  // RST 0x30
   case 0xf8: setHL(addSP());                return;  // LD HL,SP+e
-  case 0xf9: sp = HL();                     return;  // LD SP,HL
+  case 0xf9: sp = HL(); idle();             return;  // LD SP,HL
   case 0xfa: a = read8(fetch16());          return;  // LD A,(nn)
   case 0xfb: EI();                          return;  // EI
   // TODO: HCF
@@ -638,6 +638,7 @@ uint16_t SM83::addSP() {
   setN(false);
   setH(findH & 0x10);
   setC(findC & 0x100);
+  idle();
   return result;
 }
 
@@ -741,11 +742,15 @@ void SM83::ADD16(uint16_t data) {
   setC(result & 0x10000);
   h = result >> 8;
   l = result;
+  idle();
 }
 
 void SM83::JR(bool cond) {
   int16_t displacement = (int8_t)fetch8();
-  if(cond) pc += displacement;
+  if(cond) {
+    pc += displacement;
+    idle();
+  }
 }
 
 void SM83::DAA() {
@@ -870,23 +875,31 @@ void SM83::CP(uint8_t data) {
 }
 
 void SM83::RET(bool cond) {
-  if(cond) pc = pop16();
+  if(cond) {
+    pc = pop16();
+    idle();
+  }
 }
 
 void SM83::JP(bool cond) {
   uint16_t target = fetch16();
-  if(cond) pc = target;
+  if(cond) {
+    pc = target;
+    idle();
+  }
 }
 
 void SM83::CALL(bool cond) {
   uint16_t target = fetch16();
   if(cond) {
+    idle();
     push16(pc);
     pc = target;
   }
 }
 
 void SM83::RST(uint16_t addr) {
+  idle();
   push16(pc);
   pc = addr;
 }
@@ -894,6 +907,7 @@ void SM83::RST(uint16_t addr) {
 void SM83::RETI() {
   ime = true;
   pc = pop16();
+  idle();
 }
 
 void SM83::DI() {
