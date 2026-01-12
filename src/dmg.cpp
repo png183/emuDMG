@@ -20,13 +20,8 @@ uint8_t DMG::read8(uint16_t addr) {
     exit(0);
     return 0xff;
   }
-  if(addr < 0xe000) return wram[addr & 0x1fff];
-  if(addr < 0xfe00) {
-    printf("TODO: Reading address 0x%04x\n", addr);
-    exit(0);
-    return 0xff;
-  }
-  if(addr < 0xfea0) { return oam[addr & 0xff]; }
+  if(addr < 0xfe00) return wram[addr & 0x1fff];  //WRAM and echo RAM regions
+  if(addr < 0xfea0) return oam[addr & 0xff];  //OAM
   if(addr < 0xff00) {
     printf("TODO: Reading address 0x%04x\n", addr);
     exit(0);
@@ -59,13 +54,8 @@ void DMG::write8(uint16_t addr, uint8_t data) {
     exit(0);
     return;
   }
-  if(addr < 0xe000) { wram[addr & 0x1fff] = data; return; }
-  if(addr < 0xfe00) {
-    printf("TODO: Writing 0x%02x to address 0x%04x\n", data, addr);
-    exit(0);
-    return;
-  }
-  if(addr < 0xfea0) { oam[addr & 0xff] = data; return; }
+  if(addr < 0xfe00) { wram[addr & 0x1fff] = data; return; }  //WRAM and echo RAM regions
+  if(addr < 0xfea0) { oam[addr & 0xff] = data; return; }  //OAM
   if(addr < 0xff00) return;  //unused part of OAM region
 
   //todo: I/O
@@ -95,33 +85,35 @@ void DMG::cycle() {
   div++;
   scanCycle++;
 
-  if(tac & 0x04) {
-    //tick timer if condition is met
-    uint16_t divMask;
-    switch(tac & 0x03) {
-    case 0x00: divMask = 0x00ff; break;
-    case 0x01: divMask = 0x0003; break;
-    case 0x02: divMask = 0x000f; break;
-    case 0x03: divMask = 0x003f; break;
-    }
-    if(!(div & divMask)) {
-      tima++;
-      if(!tima) {
-        tima = tma;
-        setIF(IF() | 0x04);
-      }
+  //find new state of timer clocking signal
+  bool clkTimerNew = false;
+  switch(tac & 0x07) {
+  case 0x04: clkTimerNew = div & 0x80; break;
+  case 0x05: clkTimerNew = div & 0x02; break;
+  case 0x06: clkTimerNew = div & 0x08; break;
+  case 0x07: clkTimerNew = div & 0x20; break;
+  }
+
+  //clock timer on falling edge
+  if(clkTimer && !clkTimerNew) {
+    tima++;
+    if(!tima) {
+      tima = tma;
+      setIF(IF() | 0x04);
     }
   }
+  clkTimer = clkTimerNew;
 }
 
 void DMG::frame() {
   yWinCount = 0;
   for(ly = 0; ly < 154; ly++) {
     if((stat & 0x40) && ly == lyc) setIF(IF() | 0x02);
-    while(scanCycle < 456) {
+    //note: 114 M-cycles (456 T-cycles) per scanline
+    while(scanCycle < 114) {
       instruction();
     }
-    scanCycle -= 456;
+    scanCycle -= 114;
     scanline(ly);
   }
 }

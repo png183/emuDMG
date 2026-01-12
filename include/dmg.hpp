@@ -56,6 +56,9 @@ private:
   uint8_t tma;
   uint8_t tac;
 
+  // Timer circuit internal state
+  bool clkTimer;
+
   // Memory
   const int maxRomSize = 0x8000;
   uint8_t* rom;
