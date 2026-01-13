@@ -7,12 +7,9 @@ void DMG::idle() {
 uint8_t DMG::read8(uint16_t addr) {
   cycle();
 
-  if(addr < 0x8000) return cart.readROM(addr);
-  if(addr < 0xa000) {
-    printf("TODO: Reading address 0x%04x\n", addr);
-    exit(0);
-    return 0xff;
-  }
+  if(addr < 0x0100 && !boot) return rom[addr & 0xff];  //boot ROM
+  if(addr < 0x8000) return cart.readROM(addr);  //cartridge ROM region
+  if(addr < 0xa000) return vram[addr & 0x1fff];  //VRAM
   if(addr < 0xc000) return cart.readRAM(addr);  //cartridge RAM region
   if(addr < 0xfe00) return wram[addr & 0x1fff];  //WRAM and echo RAM regions
   if(addr < 0xfea0) return oam[addr & 0xff];  //OAM
@@ -22,11 +19,12 @@ uint8_t DMG::read8(uint16_t addr) {
   if(addr == 0xff05) return tima;  //TIMA
   if(addr == 0xff0f) return IF();  //IF
   if(addr == 0xff40) return lcdc;  //LCDC
+  if(addr == 0xff41) return stat;  //STAT
+  if(addr == 0xff42) return scy;  //SCY
   if(addr == 0xff44) return ly;  //LY
   if(addr >= 0xff80 && addr < 0xffff) return hram[addr & 0x7f];
   if(addr == 0xffff) return IE();  //IE
   printf("TODO: Reading address 0x%04x\n", addr);
-//  exit(0);
   return 0xff;
 }
 
@@ -55,6 +53,7 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   if(addr == 0xff45) { lyc = data; return; }  //LYC
   if(addr == 0xff48) { obp0 = data; return; }  //OBP0
   if(addr == 0xff49) { obp1 = data; return; }  //OBP1
+  if(addr == 0xff50) { boot |= (data & 0x01); return; }  //BOOT
   if(addr == 0xff4a) { wy = data; return; }  //WY
   if(addr == 0xff4b) { wx = data; return; }  //WX
   if(addr >= 0xff80 && addr < 0xffff) { hram[addr & 0x7f] = data; return; }
@@ -90,7 +89,10 @@ void DMG::cycle() {
 void DMG::frame() {
   yWinCount = 0;
   for(ly = 0; ly < 154; ly++) {
+    //handle VBLANK and STAT interrupts
+    if(ly == 144) setIF(IF() | 0x01);
     if((stat & 0x40) && ly == lyc) setIF(IF() | 0x02);
+
     //note: 114 M-cycles (456 T-cycles) per scanline
     while(scanCycle < 114) {
       instruction();

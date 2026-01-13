@@ -1,18 +1,7 @@
 #include "sm83.hpp"
 
 void SM83::reset() {
-  // based on https://gbdev.io/pandocs/Power_Up_Sequence.html#cpu-registers
-  // todo: start from boot ROM instead
-  a = 0x01;
-  f = 0x80;
-  b = 0x00;
-  c = 0x13;
-  d = 0x00;
-  e = 0xd8;
-  h = 0x01;
-  l = 0x4d;
-  pc = 0x0100;
-  sp = 0xfffe;
+  pc = 0x0000;
   ime = false;
 }
 

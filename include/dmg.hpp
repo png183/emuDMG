@@ -4,6 +4,7 @@
 class DMG : public SM83 {
 public:
   DMG() {
+    rom =  new uint8_t[0x100];
     vram = new uint8_t[0x2000];
     wram = new uint8_t[0x2000];
     oam = new uint8_t[0xa0];
@@ -11,13 +12,20 @@ public:
   }
 
   ~DMG() {
+    delete[] rom;
     delete[] vram;
     delete[] wram;
     delete[] oam;
     delete[] hram;
   }
 
-  void loadROM(char* fname) { return cart.loadROM(fname); }
+  void loadROM(char* fnameBootROM, char* fnameCartROM) {
+    boot = false;
+    FILE* f = fopen(fnameBootROM, "rb");
+    fread(rom, sizeof(uint8_t), 0x100, f);
+    fclose(f);
+    cart.loadROM(fnameCartROM);
+  }
   void idle() override;
   uint8_t read8(uint16_t addr) override;
   void write8(uint16_t addr, uint8_t data) override;
@@ -42,6 +50,9 @@ private:
   uint8_t wy;
   uint8_t wx;
 
+  // Boot ROM disable register
+  bool boot;
+
   // PPU internal state
   int scanCycle;
   uint8_t yWinCount;
@@ -60,6 +71,7 @@ private:
 
   // Memory
   Cart cart;
+  uint8_t* rom;
   uint8_t* vram;
   uint8_t* wram;
   uint8_t* oam;

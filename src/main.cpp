@@ -19,9 +19,9 @@ public:
     delete[] framebuffer;
   }
 
-  void init(char* fname) {
+  void init(char* fnameBootROM, char* fnameCartROM) {
     reset();
-    loadROM(fname);
+    loadROM(fnameBootROM, fnameCartROM);
   }
 
   void run() {
@@ -62,7 +62,7 @@ private:
 
 int main(int argc, char** argv) {
   Emulator emulator;
-  emulator.init(argv[1]);
+  emulator.init(argv[1], argv[2]);
   emulator.run();
 
   return 0;
