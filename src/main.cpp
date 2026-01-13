@@ -44,6 +44,28 @@ public:
     }
   }
 
+  uint8_t pollButtons() override {
+    //todo: support alternate key bindings
+    uint8_t data = 0xff;
+    const uint8_t* keys = SDL_GetKeyboardState(NULL);
+    if(keys[SDL_SCANCODE_RETURN]) data &= ~0x08;  //START
+    if(keys[SDL_SCANCODE_SPACE ]) data &= ~0x04;  //SELECT
+    if(keys[SDL_SCANCODE_S     ]) data &= ~0x02;  //B
+    if(keys[SDL_SCANCODE_D     ]) data &= ~0x01;  //A
+    return data;
+  }
+
+  uint8_t pollDpad() override {
+    //todo: support alternate key bindings
+    uint8_t data = 0xff;
+    const uint8_t* keys = SDL_GetKeyboardState(NULL);
+    if(keys[SDL_SCANCODE_DOWN ]) data &= ~0x08;  //DOWN
+    if(keys[SDL_SCANCODE_UP   ]) data &= ~0x04;  //UP
+    if(keys[SDL_SCANCODE_LEFT ]) data &= ~0x02;  //LEFT
+    if(keys[SDL_SCANCODE_RIGHT]) data &= ~0x01;  //RIGHT
+    return data;
+  }
+
   void plotPixel(int x, int y, uint8_t data) override {
     uint32_t colour = data ^ 0x03;  //convert palette value to colour
     colour *= 0x555555;  //scale 2-bit colour to 24-bit

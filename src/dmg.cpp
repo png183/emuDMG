@@ -1,5 +1,22 @@
 #include "dmg.hpp"
 
+void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
+  boot = false;
+  FILE* f = fopen(fnameBootROM, "rb");
+  fread(rom, sizeof(uint8_t), 0x100, f);
+  fclose(f);
+  cart.loadROM(fnameCartROM);
+}
+
+uint8_t DMG::JOYP() {
+  //todo: is JOYP = 0x00 handled correctly?
+  //todo: are bits 7 and 6 handled correctly?
+  uint8_t data = joyp | 0xcf;
+  if(!(joyp & 0x20)) data &= pollButtons();
+  if(!(joyp & 0x10)) data &= pollDpad();
+  return data;
+}
+
 void DMG::idle() {
   cycle();
 }
@@ -16,6 +33,8 @@ uint8_t DMG::read8(uint16_t addr) {
   if(addr < 0xff00) return 0x00;  //unused part of OAM region
 
   //todo: I/O
+  if(addr == 0xff00) return JOYP();  //JOYP
+  if(addr == 0xff04) return div >> 6;  //DIV
   if(addr == 0xff05) return tima;  //TIMA
   if(addr == 0xff0f) return IF();  //IF
   if(addr == 0xff40) return lcdc;  //LCDC
@@ -39,6 +58,7 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   if(addr < 0xff00) return;  //unused part of OAM region
 
   //todo: I/O
+  if(addr == 0xff00) { joyp = data & 0x30; return; }  //JOYP
   if(addr == 0xff01) return;  //todo: SB
   if(addr == 0xff02) return;  //todo: SC
   if(addr == 0xff04) { div = 0x0000; return; }  //DIV

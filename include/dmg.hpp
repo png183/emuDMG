@@ -19,24 +19,25 @@ public:
     delete[] hram;
   }
 
-  void loadROM(char* fnameBootROM, char* fnameCartROM) {
-    boot = false;
-    FILE* f = fopen(fnameBootROM, "rb");
-    fread(rom, sizeof(uint8_t), 0x100, f);
-    fclose(f);
-    cart.loadROM(fnameCartROM);
-  }
+  void loadROM(char* fnameBootROM, char* fnameCartROM);
   void idle() override;
   uint8_t read8(uint16_t addr) override;
   void write8(uint16_t addr, uint8_t data) override;
   void frame();
+
+  virtual uint8_t pollButtons() { return 0xff; }
+  virtual uint8_t pollDpad() { return 0xff; }
   virtual void plotPixel(int x, int y, uint8_t data) { return; }
 
 private:
+  uint8_t JOYP();
   void cycle();
   void scanline(uint8_t y);
   void renderBackground(uint8_t y);
   void renderSprites(uint8_t y);
+
+  // joypad register
+  uint8_t joyp;
 
   // PPU registers
   uint8_t lcdc;  // todo: bit 7
