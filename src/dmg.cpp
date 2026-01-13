@@ -1,12 +1,5 @@
 #include "dmg.hpp"
 
-void DMG::loadROM(char* fname) {
-  printf("Loading %s\n", fname);
-  FILE* f = fopen(fname, "rb");
-  fread(rom, sizeof(uint8_t), maxRomSize, f);
-  fclose(f);
-}
-
 void DMG::idle() {
   cycle();
 }
@@ -14,19 +7,16 @@ void DMG::idle() {
 uint8_t DMG::read8(uint16_t addr) {
   cycle();
 
-  if(addr < 0x8000) return rom[addr];
-  if(addr < 0xc000) {
+  if(addr < 0x8000) return cart.readROM(addr);
+  if(addr < 0xa000) {
     printf("TODO: Reading address 0x%04x\n", addr);
     exit(0);
     return 0xff;
   }
+  if(addr < 0xc000) return cart.readRAM(addr);  //cartridge RAM region
   if(addr < 0xfe00) return wram[addr & 0x1fff];  //WRAM and echo RAM regions
   if(addr < 0xfea0) return oam[addr & 0xff];  //OAM
-  if(addr < 0xff00) {
-    printf("TODO: Reading address 0x%04x\n", addr);
-    exit(0);
-    return 0xff;
-  }
+  if(addr < 0xff00) return 0x00;  //unused part of OAM region
 
   //todo: I/O
   if(addr == 0xff05) return tima;  //TIMA
@@ -43,17 +33,9 @@ uint8_t DMG::read8(uint16_t addr) {
 void DMG::write8(uint16_t addr, uint8_t data) {
   cycle();
 
-  if(addr < 0x8000) {
-//    printf("TODO: Writing 0x%02x to address 0x%04x\n", data, addr);
-//    exit(0);
-    return;
-  }
-  if(addr < 0xa000) { vram[addr & 0x1fff] = data; return; }
-  if(addr < 0xc000) {
-    printf("TODO: Writing 0x%02x to address 0x%04x\n", data, addr);
-    exit(0);
-    return;
-  }
+  if(addr < 0x8000) { cart.writeROM(addr, data); return; }  //cartridge ROM region
+  if(addr < 0xa000) { vram[addr & 0x1fff] = data; return; }  //VRAM
+  if(addr < 0xc000) { cart.writeRAM(addr, data); return; }  //cartridge RAM region
   if(addr < 0xfe00) { wram[addr & 0x1fff] = data; return; }  //WRAM and echo RAM regions
   if(addr < 0xfea0) { oam[addr & 0xff] = data; return; }  //OAM
   if(addr < 0xff00) return;  //unused part of OAM region

@@ -1,9 +1,9 @@
 #include "sm83.hpp"
+#include "cart.hpp"
 
 class DMG : public SM83 {
 public:
   DMG() {
-    rom = new uint8_t[maxRomSize];
     vram = new uint8_t[0x2000];
     wram = new uint8_t[0x2000];
     oam = new uint8_t[0xa0];
@@ -11,14 +11,13 @@ public:
   }
 
   ~DMG() {
-    delete[] rom;
     delete[] vram;
     delete[] wram;
     delete[] oam;
     delete[] hram;
   }
 
-  void loadROM(char* fname);
+  void loadROM(char* fname) { return cart.loadROM(fname); }
   void idle() override;
   uint8_t read8(uint16_t addr) override;
   void write8(uint16_t addr, uint8_t data) override;
@@ -60,8 +59,7 @@ private:
   bool clkTimer;
 
   // Memory
-  const int maxRomSize = 0x8000;
-  uint8_t* rom;
+  Cart cart;
   uint8_t* vram;
   uint8_t* wram;
   uint8_t* oam;
