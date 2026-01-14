@@ -31,6 +31,7 @@ public:
 
 private:
   uint8_t JOYP();
+  void DMA(uint8_t addrHi);
   void cycle();
   void scanline(uint8_t y);
   void renderBackground(uint8_t y);
@@ -50,6 +51,9 @@ private:
   uint8_t obp1;
   uint8_t wy;
   uint8_t wx;
+
+  // OAM DMA register
+  uint8_t dma;
 
   // Boot ROM disable register
   bool boot;

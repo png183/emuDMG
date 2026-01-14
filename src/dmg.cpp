@@ -17,6 +17,14 @@ uint8_t DMG::JOYP() {
   return data;
 }
 
+void DMG::DMA(uint8_t addrHi) {
+  dma = addrHi;
+  //todo: implement actual timings
+  for(uint8_t i = 0; i < 0xa0; i++) {
+    oam[i] = read8(addrHi << 8 | i);
+  }
+}
+
 void DMG::idle() {
   cycle();
 }
@@ -41,6 +49,8 @@ uint8_t DMG::read8(uint16_t addr) {
   if(addr == 0xff41) return stat;  //STAT
   if(addr == 0xff42) return scy;  //SCY
   if(addr == 0xff44) return ly;  //LY
+  if(addr == 0xff46) return dma;  //DMA
+  if(addr == 0xff4a) return wy;  //WY
   if(addr >= 0xff80 && addr < 0xffff) return hram[addr & 0x7f];
   if(addr == 0xffff) return IE();  //IE
   printf("TODO: Reading address 0x%04x\n", addr);
@@ -71,6 +81,7 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   if(addr == 0xff42) { scy = data; return; }  //SCY
   if(addr == 0xff43) { scx = data; return; }  //SCX
   if(addr == 0xff45) { lyc = data; return; }  //LYC
+  if(addr == 0xff46) { DMA(data); return; }  //DMA
   if(addr == 0xff48) { obp0 = data; return; }  //OBP0
   if(addr == 0xff49) { obp1 = data; return; }  //OBP1
   if(addr == 0xff50) { boot |= (data & 0x01); return; }  //BOOT
