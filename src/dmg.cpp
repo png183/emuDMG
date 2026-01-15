@@ -10,6 +10,7 @@ void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
   // reset internal state that isn't handled elsewhere or by boot ROM
   stat = 0x00;
   scx = 0x00;
+  lyc = 0x00;
   boot = false;
   scanCycle = 0;
 }
@@ -39,11 +40,19 @@ uint8_t DMG::STAT() {
 }
 
 void DMG::DMA(uint8_t addrHi) {
-  dma = addrHi;
   // todo: implement actual timings
+  dma = addrHi;
   for(uint8_t i = 0; i < 0xa0; i++) {
-    oam[i] = read8(addrHi << 8 | i);
+    oam[i] = readDMA(addrHi << 8 | i);
   }
+}
+
+uint8_t DMG::readDMA(uint16_t addr) {
+  // OAM DMA uses a simpler address decoding scheme
+  if(addr < 0x8000) return cart.readROM(addr);
+  if(addr < 0xa000) return vram[addr & 0x1fff];
+  if(addr < 0xc000) return cart.readRAM(addr);
+  return wram[addr & 0x1fff];
 }
 
 void DMG::idle() {
@@ -64,8 +73,12 @@ uint8_t DMG::read8(uint16_t addr) {
   // I/O region
   // todo: finish implementing
   if(addr == 0xff00) return JOYP();  // JOYP
+  if(addr == 0xff01) return 0x00;  // todo: SB
+  if(addr == 0xff02) return 0x7e;  // todo: SC
   if(addr == 0xff04) return div >> 6;  // DIV
   if(addr == 0xff05) return tima;  // TIMA
+  if(addr == 0xff06) return tma;  // TMA
+  if(addr == 0xff07) return 0xf8 | tac;  // TAC
   if(addr == 0xff0f) return IF();  // IF
   if(addr == 0xff40) return lcdc;  // LCDC
   if(addr == 0xff41) return STAT();  // STAT
@@ -74,7 +87,9 @@ uint8_t DMG::read8(uint16_t addr) {
   if(addr == 0xff44) return ly;  // LY
   if(addr == 0xff45) return lyc;  // LYC
   if(addr == 0xff46) return dma;  // DMA
+  if(addr == 0xff47) return bgp;  // BGP
   if(addr == 0xff4a) return wy;  // WY
+  if(addr == 0xff4b) return wx;  // WX
   if(addr >= 0xff80 && addr < 0xffff) return hram[addr & 0x7f];  // HRAM
   if(addr == 0xffff) return IE();  // IE
   printf("TODO: Reading address 0x%04x\n", addr);
@@ -98,7 +113,7 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   if(addr == 0xff04) { div = 0x0000; return; }  // DIV
   if(addr == 0xff05) { tima = data; return; }  // TIMA
   if(addr == 0xff06) { tma = data; return; }  // TMA
-  if(addr == 0xff07) { tac = data; return; }  // TAC
+  if(addr == 0xff07) { tac = data & 0x07; return; }  // TAC
   if(addr == 0xff0f) { setIF(data); return; }  // IF
   if(addr >= 0xff10 && addr < 0xff40) return;  // todo: APU
   if(addr == 0xff40) { lcdc = data; return; }  // LCDC

@@ -7,8 +7,8 @@ public:
   void reset();
   void instruction();
   void setIF(uint8_t data) { _if = data & 0x1f; }
-  void setIE(uint8_t data) { _ie = data & 0x1f; }
-  uint8_t IF() { return _if; }
+  void setIE(uint8_t data) { _ie = data; }
+  uint8_t IF() { return 0xe0 | _if; }
   uint8_t IE() { return _ie; }
   virtual void idle() { return; }
   virtual uint8_t read8(uint16_t addr) { return 0xff; }

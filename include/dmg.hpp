@@ -33,6 +33,7 @@ private:
   uint8_t JOYP();
   uint8_t STAT();
   void DMA(uint8_t addrHi);
+  uint8_t readDMA(uint16_t addr);
   void cycle();
   void scanline(uint8_t y);
   void renderBackground(uint8_t y);
@@ -40,6 +41,12 @@ private:
 
   // joypad register
   uint8_t joyp;
+
+  // Timer registers
+  uint16_t div;
+  uint8_t tima;
+  uint8_t tma;
+  uint8_t tac;
 
   // PPU registers
   uint8_t lcdc;  // todo: bit 7
@@ -60,6 +67,9 @@ private:
   // Boot ROM disable register
   bool boot;
 
+  // Timer circuit internal state
+  bool clkTimer;
+
   // PPU internal state
   int scanCycle;
   uint8_t yWinCount;
@@ -68,15 +78,6 @@ private:
   uint8_t bgBuffer[160];
   uint8_t objBuffer[160];
   uint8_t attrBuffer[160];
-
-  // Timer registers
-  uint16_t div;
-  uint8_t tima;
-  uint8_t tma;
-  uint8_t tac;
-
-  // Timer circuit internal state
-  bool clkTimer;
 
   // Memory
   Cart cart;
