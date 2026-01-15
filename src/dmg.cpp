@@ -1,11 +1,17 @@
 #include "dmg.hpp"
 
 void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
-  boot = false;
+  //load boot ROM and cartridge ROM
   FILE* f = fopen(fnameBootROM, "rb");
   fread(rom, sizeof(uint8_t), 0x100, f);
   fclose(f);
   cart.loadROM(fnameCartROM);
+
+  //reset internal state that isn't handled elsewhere or by boot ROM
+  stat = 0x00;
+  scx = 0x00;
+  boot = false;
+  scanCycle = 0;
 }
 
 uint8_t DMG::JOYP() {
@@ -82,6 +88,7 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   if(addr == 0xff43) { scx = data; return; }  //SCX
   if(addr == 0xff45) { lyc = data; return; }  //LYC
   if(addr == 0xff46) { DMA(data); return; }  //DMA
+  if(addr == 0xff47) { bgp = data; return; }  //BGP
   if(addr == 0xff48) { obp0 = data; return; }  //OBP0
   if(addr == 0xff49) { obp1 = data; return; }  //OBP1
   if(addr == 0xff50) { boot |= (data & 0x01); return; }  //BOOT
@@ -137,7 +144,11 @@ void DMG::scanline(uint8_t y) {
   if(y >= 144) return;
 
   //clear pixels
-  for(uint8_t x = 0; x < 160; x++) lineBuffer[x] = 0;
+  for(uint8_t x = 0; x < 160; x++) {
+    bgBuffer[x] = 0x00;
+    objBuffer[x] = 0x00;
+    attrBuffer[x] = 0x00;
+  }
 
   //render background
   if(lcdc & 0x01) renderBackground(y);
@@ -146,7 +157,15 @@ void DMG::scanline(uint8_t y) {
   if(lcdc & 0x02) renderSprites(y);
 
   //output scanline
-  for(int x = 0; x < 160; x++) plotPixel(x, y, lineBuffer[x]);
+  for(int x = 0; x < 160; x++) {
+    uint8_t bgPalette = bgBuffer[x];
+    uint8_t objPalette = objBuffer[x];
+    uint8_t attributes = attrBuffer[x];
+    uint8_t bgColour = (bgp >> (bgPalette << 1)) & 0x03;
+    uint8_t objColour = (((attributes & 0x10) ? obp1 : obp0) >> (objPalette  << 1)) & 0x03;
+    uint8_t colour = (objPalette && (!bgPalette || !(attributes & 0x80))) ? objColour : bgColour;
+    plotPixel(x, y, colour);
+  }
 }
 
 void DMG::renderBackground(uint8_t y) {
@@ -169,7 +188,7 @@ void DMG::renderBackground(uint8_t y) {
     uint8_t tileDataHi = vram[tileAddr | 1];
     uint8_t pxLo = (tileDataLo >> (fineX ^ 0x07)) & 1;
     uint8_t pxHi = (tileDataHi >> (fineX ^ 0x07)) & 1;
-    lineBuffer[x] = pxHi << 1 | pxLo;
+    bgBuffer[x] = pxHi << 1 | pxLo;
   }
 
   //render window
@@ -195,7 +214,7 @@ void DMG::renderBackground(uint8_t y) {
     uint8_t tileDataHi = vram[tileAddr | 1];
     uint8_t pxLo = (tileDataLo >> (fineX ^ 0x07)) & 1;
     uint8_t pxHi = (tileDataHi >> (fineX ^ 0x07)) & 1;
-    lineBuffer[x] = pxHi << 1 | pxLo;
+    bgBuffer[x] = pxHi << 1 | pxLo;
   }
   if(wx < 167) yWinCount++;
 }
@@ -220,6 +239,7 @@ void DMG::renderSprites(uint8_t y) {
 
   for(uint8_t x = 0; x < 160; x++) {
     //find leftmost sprite that intersects this pixel
+    //todo: this results in incorrect priority with transparent sprites
     uint8_t index = 0xff;
     for(uint8_t i = 0; i < bufSize; i += 4) {
       uint8_t dataX = spriteBuffer[i + 1];
@@ -249,8 +269,10 @@ void DMG::renderSprites(uint8_t y) {
     uint8_t pxLo = (tileDataLo >> fineX) & 1;
     uint8_t pxHi = (tileDataHi >> fineX) & 1;
     uint8_t palette = pxHi << 1 | pxLo;
-    uint8_t colour = (((attributes & 0x10) ? obp1 : obp0) >> (palette  << 1)) & 0x03;
-    if(palette && (!lineBuffer[x] || !(attributes & 0x80))) lineBuffer[x] = colour;
+    if(palette && !(objBuffer[x])) {
+      objBuffer[x] = palette;
+      attrBuffer[x] = attributes;
+    }
   }
 }
 

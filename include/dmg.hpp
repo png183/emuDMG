@@ -47,6 +47,7 @@ private:
   uint8_t scx;
   uint8_t ly;
   uint8_t lyc;
+  uint8_t bgp;
   uint8_t obp0;
   uint8_t obp1;
   uint8_t wy;
@@ -63,7 +64,9 @@ private:
   uint8_t yWinCount;
 
   // Scanline renderer state
-  uint8_t lineBuffer[160];
+  uint8_t bgBuffer[160];
+  uint8_t objBuffer[160];
+  uint8_t attrBuffer[160];
 
   // Timer registers
   uint16_t div;

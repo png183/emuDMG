@@ -3,6 +3,8 @@
 void SM83::reset() {
   pc = 0x0000;
   ime = false;
+  setIF(0x00);
+  setIE(0x00);
 }
 
 void SM83::instruction() {
