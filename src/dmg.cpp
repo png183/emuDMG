@@ -55,7 +55,9 @@ uint8_t DMG::read8(uint16_t addr) {
   if(addr == 0xff40) return lcdc;  // LCDC
   if(addr == 0xff41) return stat;  // STAT
   if(addr == 0xff42) return scy;  // SCY
+  if(addr == 0xff43) return scx;  // SCX
   if(addr == 0xff44) return ly;  // LY
+  if(addr == 0xff45) return lyc;  // LYC
   if(addr == 0xff46) return dma;  // DMA
   if(addr == 0xff4a) return wy;  // WY
   if(addr >= 0xff80 && addr < 0xffff) return hram[addr & 0x7f];  // HRAM
@@ -101,9 +103,23 @@ void DMG::write8(uint16_t addr, uint8_t data) {
 }
 
 void DMG::cycle() {
+  // run PPU
+  scanCycle += 4;
+  if(scanCycle >= 456) {
+    scanCycle -= 456;
+    scanline(ly);
+    ly++;
+    if(ly == 154) {
+      ly = 0;
+      yWinCount = 0;
+      frame();
+    }
+    if(ly == 144) setIF(IF() | 0x01);
+    if((stat & 0x40) && ly == lyc) setIF(IF() | 0x02);
+  }
+
   // run 1 M-cycle
   div++;
-  scanCycle++;
 
   // find new state of timer clocking signal
   bool clkTimerNew = false;
@@ -123,22 +139,6 @@ void DMG::cycle() {
     }
   }
   clkTimer = clkTimerNew;
-}
-
-void DMG::frame() {
-  yWinCount = 0;
-  for(ly = 0; ly < 154; ly++) {
-    // handle VBLANK and STAT interrupts
-    if(ly == 144) setIF(IF() | 0x01);
-    if((stat & 0x40) && ly == lyc) setIF(IF() | 0x02);
-
-    // note: 114 M-cycles (456 T-cycles) per scanline
-    while(scanCycle < 114) {
-      instruction();
-    }
-    scanCycle -= 114;
-    scanline(ly);
-  }
 }
 
 void DMG::scanline(uint8_t y) {

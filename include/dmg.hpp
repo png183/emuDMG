@@ -23,8 +23,8 @@ public:
   void idle() override;
   uint8_t read8(uint16_t addr) override;
   void write8(uint16_t addr, uint8_t data) override;
-  void frame();
 
+  virtual void frame() { return; }
   virtual uint8_t pollButtons() { return 0xff; }
   virtual uint8_t pollDpad() { return 0xff; }
   virtual void plotPixel(int x, int y, uint8_t data) { return; }

@@ -24,24 +24,25 @@ public:
     loadROM(fnameBootROM, fnameCartROM);
   }
 
-  void run() {
-    for(;;) {
-      //run emulator for one frame
-      frame();
+  void frame() override {
+    //draw frame
+    SDL_UpdateTexture(texture, NULL, framebuffer, 4 * width);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
 
-      //draw frame
-      SDL_UpdateTexture(texture, NULL, framebuffer, 4 * width);
-      SDL_RenderCopy(renderer, texture, NULL, NULL);
-      SDL_RenderPresent(renderer);
-
-      //check for window closing
-      SDL_Event event;
-      while(SDL_PollEvent(&event)) {
-        switch(event.type) {
-        case SDL_QUIT: return;
-        }
+    //check for window closing
+    SDL_Event event;
+    while(SDL_PollEvent(&event)) {
+      switch(event.type) {
+      case SDL_QUIT:
+        exit(0);
+        return;
       }
     }
+  }
+
+  void run() {
+    for(;;) instruction();
   }
 
   uint8_t pollButtons() override {

@@ -50,6 +50,8 @@ private:
   void SCF();
   void CCF();
 
+  void HALT();
+
   void ADD(uint8_t data);
   void ADC(uint8_t data);
   void SUB(uint8_t data);

@@ -141,7 +141,7 @@ void SM83::instruction() {
   case 0x73: write8(HL(), e); return;  // LD (HL),E
   case 0x74: write8(HL(), h); return;  // LD (HL),H
   case 0x75: write8(HL(), l); return;  // LD (HL),L
-  case 0x76: /* TODO */       return;  // HALT
+  case 0x76: HALT();          return;  // HALT
   case 0x77: write8(HL(), a); return;  // LD (HL),A
   case 0x78: a = b;           return;  // LD A,B
   case 0x79: a = c;           return;  // LD A,C
@@ -779,6 +779,10 @@ void SM83::CCF() {
   setN(false);
   setH(false);
   setC(!CF());
+}
+
+void SM83::HALT() {
+  while(!(_if & _ie)) idle();
 }
 
 void SM83::ADD(uint8_t data) {
