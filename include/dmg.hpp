@@ -31,6 +31,7 @@ public:
 
 private:
   uint8_t JOYP();
+  uint8_t STAT();
   void DMA(uint8_t addrHi);
   void cycle();
   void scanline(uint8_t y);
@@ -42,7 +43,7 @@ private:
 
   // PPU registers
   uint8_t lcdc;  // todo: bit 7
-  uint8_t stat;  // todo: bits 5-0
+  uint8_t stat;  // todo: bit 4
   uint8_t scy;
   uint8_t scx;
   uint8_t ly;

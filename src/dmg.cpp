@@ -23,6 +23,21 @@ uint8_t DMG::JOYP() {
   return data;
 }
 
+uint8_t DMG::STAT() {
+  // todo: is bit 7 handled correctly?
+  uint8_t data = 0x80 | (stat & 0x78);
+  if(ly == lyc) data |= 0x04;
+  if(ly >= 144) {
+    data |= 0x01;
+  } else if(scanCycle < 80) {
+    data |= 0x02;
+  } else if(scanCycle < 252) {
+    // todo: HBLANK start time can vary
+    data |= 0x03;
+  }
+  return data;
+}
+
 void DMG::DMA(uint8_t addrHi) {
   dma = addrHi;
   // todo: implement actual timings
@@ -53,7 +68,7 @@ uint8_t DMG::read8(uint16_t addr) {
   if(addr == 0xff05) return tima;  // TIMA
   if(addr == 0xff0f) return IF();  // IF
   if(addr == 0xff40) return lcdc;  // LCDC
-  if(addr == 0xff41) return stat;  // STAT
+  if(addr == 0xff41) return STAT();  // STAT
   if(addr == 0xff42) return scy;  // SCY
   if(addr == 0xff43) return scx;  // SCX
   if(addr == 0xff44) return ly;  // LY
@@ -105,9 +120,13 @@ void DMG::write8(uint16_t addr, uint8_t data) {
 void DMG::cycle() {
   // run PPU
   scanCycle += 4;
-  if(scanCycle >= 456) {
-    scanCycle -= 456;
+  if(scanCycle == 80) {
     scanline(ly);
+  } else if(scanCycle == 252) {
+    // todo: HBLANK start time can vary
+    if((stat & 0x08) && ly < 144) setIF(IF() | 0x02);  // mode 0 STAT IRQ condition
+  } else if(scanCycle == 456) {
+    scanCycle -= 456;
     ly++;
     if(ly == 154) {
       ly = 0;
@@ -115,7 +134,8 @@ void DMG::cycle() {
       frame();
     }
     if(ly == 144) setIF(IF() | 0x01);
-    if((stat & 0x40) && ly == lyc) setIF(IF() | 0x02);
+    if((stat & 0x40) && ly == lyc) setIF(IF() | 0x02);  // LYC STAT IRQ condition
+    if((stat & 0x20) && ly < 144) setIF(IF() | 0x02);  // mode 2 STAT IRQ condition
   }
 
   // run 1 M-cycle
