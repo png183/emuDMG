@@ -237,41 +237,39 @@ void DMG::renderSprites(uint8_t y) {
     if(bufSize >= 40) break;
   }
 
-  for(uint8_t x = 0; x < 160; x++) {
-    //find leftmost sprite that intersects this pixel
-    //todo: this results in incorrect priority with transparent sprites
-    uint8_t index = 0xff;
+  for(int x = -8; x < 160; x++) {
+    //check x-coordinate of all buffered sprites
     for(uint8_t i = 0; i < bufSize; i += 4) {
       uint8_t dataX = spriteBuffer[i + 1];
-      if((x + 8) >= dataX && (x + 8) < (dataX + 8)) {
-        if(index == 0xff || dataX < spriteBuffer[index]) {
-          index = i;
+      if((x + 8) == dataX) {
+        //fetch tile data
+        uint8_t dataY = y + 16 - spriteBuffer[i + 0];
+        uint8_t tile = spriteBuffer[i + 2];
+        uint8_t attributes = spriteBuffer[i + 3];
+        uint8_t fineY = dataY & (spriteHeight - 1);
+        if(attributes & 0x40) fineY ^= (spriteHeight - 1);
+        if(lcdc & 0x04) tile &= ~1;  //mask low bit of tile ID for 8x16 sprites
+        uint16_t tileAddr = tile << 4 | fineY << 1;
+        uint8_t tileDataLo = vram[tileAddr | 0];
+        uint8_t tileDataHi = vram[tileAddr | 1];
+
+        //draw sprite
+        for(uint8_t fineX = 0; fineX < 8; fineX++) {
+          int outX = x + fineX;
+          if(outX < 0 || outX >= 160) continue;
+
+          //render pixel
+          uint8_t outFineX = fineX;
+          if(!(attributes & 0x20)) outFineX ^= 0x07;
+          uint8_t pxLo = (tileDataLo >> outFineX) & 1;
+          uint8_t pxHi = (tileDataHi >> outFineX) & 1;
+          uint8_t palette = pxHi << 1 | pxLo;
+          if(palette && !(objBuffer[outX])) {
+            objBuffer[outX] = palette;
+            attrBuffer[outX] = attributes;
+          }
         }
       }
-    }
-    if(index == 0xff) continue;
-
-    //fetch tile data
-    uint8_t dataY = y + 16 - spriteBuffer[index + 0];
-    uint8_t dataX = spriteBuffer[index + 1];
-    uint8_t tile = spriteBuffer[index + 2];
-    uint8_t attributes = spriteBuffer[index + 3];
-    uint8_t fineY = dataY & (spriteHeight - 1);
-    if(attributes & 0x40) fineY ^= (spriteHeight - 1);
-    if(lcdc & 0x04) tile &= ~1;  //mask low bit of tile ID for 8x16 sprites
-    uint16_t tileAddr = tile << 4 | fineY << 1;
-    uint8_t tileDataLo = vram[tileAddr | 0];
-    uint8_t tileDataHi = vram[tileAddr | 1];
-
-    //render pixel
-    uint8_t fineX = x + 8 - dataX;
-    if(!(attributes & 0x20)) fineX ^= 0x07;
-    uint8_t pxLo = (tileDataLo >> fineX) & 1;
-    uint8_t pxHi = (tileDataHi >> fineX) & 1;
-    uint8_t palette = pxHi << 1 | pxLo;
-    if(palette && !(objBuffer[x])) {
-      objBuffer[x] = palette;
-      attrBuffer[x] = attributes;
     }
   }
 }
