@@ -133,15 +133,14 @@ void DMG::write8(uint16_t addr, uint8_t data) {
 }
 
 void DMG::cycle() {
+  bool irqStatLineOld = irqStatLine;
+
   // run PPU
   scanCycle += 4;
   if(scanCycle == 80) {
     scanline(ly);
-  } else if(scanCycle == 252) {
-    // todo: HBLANK start time can vary
-    if((stat & 0x08) && ly < 144) setIF(IF() | 0x02);  // mode 0 STAT IRQ condition
   } else if(scanCycle == 456) {
-    scanCycle -= 456;
+    scanCycle = 0;
     ly++;
     if(ly == 154) {
       ly = 0;
@@ -149,10 +148,14 @@ void DMG::cycle() {
       frame();
     }
     if(ly == 144) setIF(IF() | 0x01);
-    if((stat & 0x40) && ly == lyc) setIF(IF() | 0x02);  // LYC STAT IRQ condition
-    if((stat & 0x20) && ly < 144) setIF(IF() | 0x02);  // mode 2 STAT IRQ condition
-    if((stat & 0x10) && ly == 144) setIF(IF() | 0x02);  // mode 1 STAT IRQ condition
   }
+
+  irqStatLine = false;
+  if((stat & 0x40) && ly == lyc                    ) irqStatLine = true;  // LYC
+  if((stat & 0x20) && ly <  144 && scanCycle <   80) irqStatLine = true;  // mode 2
+  if((stat & 0x10) && ly >= 144                    ) irqStatLine = true;  // mode 1
+  if((stat & 0x08) && ly <  144 && scanCycle >= 252) irqStatLine = true;  // mode 0
+  if(irqStatLine && !irqStatLineOld) setIF(IF() | 0x02);
 
   // run 1 M-cycle
   div++;

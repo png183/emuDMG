@@ -73,6 +73,7 @@ private:
   // PPU internal state
   int scanCycle;
   uint8_t yWinCount;
+  bool irqStatLine;
 
   // Scanline renderer state
   uint8_t bgBuffer[160];
