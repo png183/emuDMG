@@ -10,11 +10,11 @@ void SM83::reset() {
 void SM83::instruction() {
   if(ime && (_if & _ie)) {
     ime = false;
-    if(_if & _ie & 0x01) { _if &= ~0x01; RST(0x0040); return; }
-    if(_if & _ie & 0x02) { _if &= ~0x02; RST(0x0048); return; }
-    if(_if & _ie & 0x04) { _if &= ~0x04; RST(0x0050); return; }
-    if(_if & _ie & 0x08) { _if &= ~0x08; RST(0x0058); return; }
-    if(_if & _ie & 0x10) { _if &= ~0x10; RST(0x0060); return; }
+    if(_if & _ie & 0x01) { _if &= ~0x01; runISR(0x0040); return; }
+    if(_if & _ie & 0x02) { _if &= ~0x02; runISR(0x0048); return; }
+    if(_if & _ie & 0x04) { _if &= ~0x04; runISR(0x0050); return; }
+    if(_if & _ie & 0x08) { _if &= ~0x08; runISR(0x0058); return; }
+    if(_if & _ie & 0x10) { _if &= ~0x10; runISR(0x0060); return; }
   }
 
   uint8_t ir = fetch8();
@@ -561,6 +561,14 @@ void SM83::instructionCB() {
   }
 
   //unreachable
+}
+
+void SM83::runISR(uint16_t addr) {
+  idle();
+  idle();
+  push16(pc);
+  idle();
+  pc = addr;
 }
 
 void SM83::write16(uint16_t addr, uint16_t data) {

@@ -16,6 +16,7 @@ public:
 
 private:
   void instructionCB();
+  void runISR(uint16_t addr);
   void write16(uint16_t addr, uint16_t data);
   uint8_t fetch8();
   uint16_t fetch16();
