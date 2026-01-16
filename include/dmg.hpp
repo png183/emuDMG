@@ -50,7 +50,7 @@ private:
 
   // PPU registers
   uint8_t lcdc;  // todo: bit 7
-  uint8_t stat;  // todo: bit 4
+  uint8_t stat;
   uint8_t scy;
   uint8_t scx;
   uint8_t ly;

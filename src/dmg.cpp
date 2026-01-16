@@ -18,7 +18,7 @@ void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
 uint8_t DMG::JOYP() {
   // todo: is JOYP = 0x00 handled correctly?
   // todo: are bits 7 and 6 handled correctly?
-  uint8_t data = joyp | 0xcf;
+  uint8_t data = 0xcf | joyp;
   if(!(joyp & 0x20)) data &= pollButtons();
   if(!(joyp & 0x10)) data &= pollDpad();
   return data;
@@ -26,7 +26,7 @@ uint8_t DMG::JOYP() {
 
 uint8_t DMG::STAT() {
   // todo: is bit 7 handled correctly?
-  uint8_t data = 0x80 | (stat & 0x78);
+  uint8_t data = 0x80 | stat;
   if(ly == lyc) data |= 0x04;
   if(ly >= 144) {
     data |= 0x01;
@@ -117,7 +117,7 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   if(addr == 0xff0f) { setIF(data); return; }  // IF
   if(addr >= 0xff10 && addr < 0xff40) return;  // todo: APU
   if(addr == 0xff40) { lcdc = data; return; }  // LCDC
-  if(addr == 0xff41) { stat = data; return; }  // STAT
+  if(addr == 0xff41) { stat = data & 0x78; return; }  // STAT
   if(addr == 0xff42) { scy = data; return; }  // SCY
   if(addr == 0xff43) { scx = data; return; }  // SCX
   if(addr == 0xff45) { lyc = data; return; }  // LYC
@@ -151,6 +151,7 @@ void DMG::cycle() {
     if(ly == 144) setIF(IF() | 0x01);
     if((stat & 0x40) && ly == lyc) setIF(IF() | 0x02);  // LYC STAT IRQ condition
     if((stat & 0x20) && ly < 144) setIF(IF() | 0x02);  // mode 2 STAT IRQ condition
+    if((stat & 0x10) && ly == 144) setIF(IF() | 0x02);  // mode 1 STAT IRQ condition
   }
 
   // run 1 M-cycle
