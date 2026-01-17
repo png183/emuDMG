@@ -7,7 +7,8 @@ void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
   fclose(f);
   cart.loadROM(fnameCartROM);
 
-  // reset boot flag
+  // reset I/O
+  joyp = 0x00;
   boot = false;
 
   // reset DMA state

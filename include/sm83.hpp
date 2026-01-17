@@ -92,7 +92,7 @@ private:
   uint8_t l;
   uint16_t pc;
   uint16_t sp;
-  bool ime;
+  bool ime[2];
   uint8_t _if;
   uint8_t _ie;
 };

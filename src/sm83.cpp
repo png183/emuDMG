@@ -2,20 +2,23 @@
 
 void SM83::reset() {
   pc = 0x0000;
-  ime = false;
+  ime[0] = false;
+  ime[1] = false;
   setIF(0x00);
   setIE(0x00);
 }
 
 void SM83::instruction() {
-  if(ime && (_if & _ie)) {
-    ime = false;
+  if(ime[0] && (_if & _ie)) {
+    ime[0] = false;
+    ime[1] = false;
     if(_if & _ie & 0x01) { _if &= ~0x01; runISR(0x0040); return; }
     if(_if & _ie & 0x02) { _if &= ~0x02; runISR(0x0048); return; }
     if(_if & _ie & 0x04) { _if &= ~0x04; runISR(0x0050); return; }
     if(_if & _ie & 0x08) { _if &= ~0x08; runISR(0x0058); return; }
     if(_if & _ie & 0x10) { _if &= ~0x10; runISR(0x0060); return; }
   }
+  ime[0] = ime[1];
 
   uint8_t ir = fetch8();
   switch(ir) {
@@ -908,17 +911,19 @@ void SM83::RST(uint16_t addr) {
 }
 
 void SM83::RETI() {
-  ime = true;
+  ime[0] = true;
+  ime[1] = true;
   pc = pop16();
   idle();
 }
 
 void SM83::DI() {
-  ime = false;
+  ime[0] = false;
+  ime[1] = false;
 }
 
 void SM83::EI() {
-  ime = true;
+  ime[1] = true;
 }
 
 uint8_t SM83::RLC(uint8_t data) {
