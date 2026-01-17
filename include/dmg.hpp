@@ -50,6 +50,12 @@ private:
   // Timer circuit internal state
   bool clkTimer;
 
+  // OAM DMA internal state
+  bool dmaPending[2];
+  uint16_t dmaPendingAddr[2];
+  bool dmaActive;
+  uint16_t dmaAddr;
+
   // Memory
   Cart cart;
   uint8_t* rom;

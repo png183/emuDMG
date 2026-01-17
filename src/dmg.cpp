@@ -9,6 +9,11 @@ void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
 
   // reset boot flag
   boot = false;
+
+  // reset DMA state
+  dmaActive = false;
+  dmaPending[0] = false;
+  dmaPending[1] = false;
 }
 
 uint8_t DMG::JOYP() {
@@ -20,12 +25,10 @@ uint8_t DMG::JOYP() {
   return data;
 }
 
-void DMG::DMA(uint8_t addrHi) {
-  // todo: implement actual timings
-  dma = addrHi;
-  for(uint8_t i = 0; i < 0xa0; i++) {
-    oam[i] = readDMA(addrHi << 8 | i);
-  }
+void DMG::DMA(uint8_t data) {
+  dma = data;
+  dmaPending[1] = true;
+  dmaPendingAddr[1] = dma << 8;
 }
 
 uint8_t DMG::readDMA(uint16_t addr) {
@@ -48,11 +51,10 @@ uint8_t DMG::read8(uint16_t addr) {
   if(addr < 0xa000) return vram[addr & 0x1fff];  // VRAM
   if(addr < 0xc000) return cart.readRAM(addr);  // cartridge RAM region
   if(addr < 0xfe00) return wram[addr & 0x1fff];  // WRAM and echo RAM regions
-  if(addr < 0xfea0) return oam[addr & 0xff];  // OAM
+  if(addr < 0xfea0) return dmaActive ? 0xff : oam[addr & 0xff];  // OAM (todo: more accurately limit accessible regions while DMA is active)
   if(addr < 0xff00) return 0x00;  // unused part of OAM region
 
   // I/O region
-  // todo: finish implementing
   if(addr == 0xff00) return JOYP();  // JOYP
   if(addr == 0xff01) return 0x00;  // todo: SB
   if(addr == 0xff02) return 0x7e;  // todo: SC
@@ -61,12 +63,12 @@ uint8_t DMG::read8(uint16_t addr) {
   if(addr == 0xff06) return tma;  // TMA
   if(addr == 0xff07) return 0xf8 | tac;  // TAC
   if(addr == 0xff0f) return IF();  // IF
+  if(addr >= 0xff10 && addr < 0xff40) { printf("TODO: Reading address 0x%04x\n", addr); return 0xff; }  // todo: APU
   if(addr >= 0xff40 && addr < 0xff46) return ppuReadIO(addr);
   if(addr == 0xff46) return dma;  // DMA
   if(addr >= 0xff47 && addr < 0xff4c) return ppuReadIO(addr);
   if(addr >= 0xff80 && addr < 0xffff) return hram[addr & 0x7f];  // HRAM
   if(addr == 0xffff) return IE();  // IE
-  printf("TODO: Reading address 0x%04x\n", addr);
   return 0xff;
 }
 
@@ -77,7 +79,7 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   if(addr < 0xa000) { vram[addr & 0x1fff] = data; return; }  // VRAM
   if(addr < 0xc000) { cart.writeRAM(addr, data); return; }  // cartridge RAM region
   if(addr < 0xfe00) { wram[addr & 0x1fff] = data; return; }  // WRAM and echo RAM regions
-  if(addr < 0xfea0) { oam[addr & 0xff] = data; return; }  // OAM
+  if(addr < 0xfea0) { if(!dmaActive) oam[addr & 0xff] = data; return; }  // OAM (todo: more accurately limit accessible regions while DMA is active)
   if(addr < 0xff00) return;  // unused part of OAM region
 
   // I/O region
@@ -100,6 +102,22 @@ void DMG::write8(uint16_t addr, uint8_t data) {
 
 void DMG::cycle() {
   ppuTick();
+
+  // run 1 byte of DMA transfer, if active
+  if(dmaActive) {
+    oam[dmaAddr & 0xff] = readDMA(dmaAddr);
+    dmaAddr++;
+    if((dmaAddr & 0xff) >= 0xa0) dmaActive = false;
+  }
+
+  // start DMA, if pending
+  if(dmaPending[0]) {
+    dmaActive = true;
+    dmaAddr = dmaPendingAddr[0];
+  }
+  dmaPendingAddr[0] = dmaPendingAddr[1];
+  dmaPending[0] = dmaPending[1];
+  dmaPending[1] = false;
 
   // run 1 M-cycle
   div++;
