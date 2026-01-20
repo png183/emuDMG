@@ -1,5 +1,6 @@
 #include "sm83.hpp"
 #include "ppu.hpp"
+#include "apu.hpp"
 #include "cart.hpp"
 
 class DMG : public SM83, public PPU {
@@ -45,16 +46,12 @@ private:
   uint8_t tma;
   uint8_t tac;
 
-  // APU registers
-  uint8_t ch1InitLength;
-  uint16_t ch1Period;
-  bool ch1On;
-  bool audioOn;
+  // APU channels
+  Channel ch1;
+  Channel ch2;
 
-  // APU internal state
-  uint16_t ch1DutyTimer;
-  uint8_t ch1DutyStep;
-  uint8_t ch1Length;
+  // NR52 register
+  bool nr52;
 
   // OAM DMA register
   uint8_t dma;

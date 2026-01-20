@@ -17,8 +17,7 @@ void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
   dmaPending[1] = false;
 
   // reset APU
-  audioOn = false;
-  ch1On = false;
+  nr52 = false;
 }
 
 uint8_t DMG::JOYP() {
@@ -46,14 +45,14 @@ uint8_t DMG::readDMA(uint16_t addr) {
 
 void DMG::writeAPU(uint16_t addr, uint8_t data) {
 //  if(addr == 0xff10) { printf("TODO: NR10 write\n"); return; }
-  if(addr == 0xff11) { ch1InitLength = data & 0x3f; return; }
+  if(addr == 0xff11) { ch1.writeNRx1(data); return; }
 //  if(addr == 0xff12) { printf("TODO: NR12 write\n"); return; }
-  if(addr == 0xff13) { ch1Period &= 0xff00; ch1Period |= data; return; }
-  if(addr == 0xff14) { ch1On = data & 0x80; ch1Period &= 0x00ff; ch1Period |= (data & 0x07) << 8; return; }
-//  if(addr == 0xff16) { printf("TODO: NR21 write\n"); return; }
+  if(addr == 0xff13) { ch1.writeNRx3(data); return; }
+  if(addr == 0xff14) { ch1.writeNRx4(data); return; }
+  if(addr == 0xff16) { ch2.writeNRx1(data); return; }
 //  if(addr == 0xff17) { printf("TODO: NR22 write\n"); return; }
-//  if(addr == 0xff18) { printf("TODO: NR23 write\n"); return; }
-//  if(addr == 0xff19) { printf("TODO: NR24 write\n"); return; }
+  if(addr == 0xff18) { ch2.writeNRx3(data); return; }
+  if(addr == 0xff19) { ch2.writeNRx4(data); return; }
 //  if(addr == 0xff1a) { printf("TODO: NR30 write\n"); return; }
 //  if(addr == 0xff1b) { printf("TODO: NR31 write\n"); return; }
 //  if(addr == 0xff1c) { printf("TODO: NR32 write\n"); return; }
@@ -65,20 +64,15 @@ void DMG::writeAPU(uint16_t addr, uint8_t data) {
 //  if(addr == 0xff23) { printf("TODO: NR44 write\n"); return; }
 //  if(addr == 0xff24) { printf("TODO: NR50 write\n"); return; }
 //  if(addr == 0xff25) { printf("TODO: NR51 write\n"); return; }
-  if(addr == 0xff26) { audioOn = data & 0x80; ch1Length = ch1InitLength; ch1DutyTimer = ch1Period; return; }  // NR52
+  if(addr == 0xff26) { nr52 = data & 0x80; ch1.start(); ch2.start(); return; }  // NR52
 //  if(addr >= 0xff30 && addr < 0xff40) { printf("TODO: Wave RAM write\n"); return; }
 }
 
 void DMG::apuTick() {
-  static const int16_t envelope[8] = { 0x0800, 0x0800, 0x0800, 0x0800, ~0x0800, ~0x0800, ~0x0800, ~0x0800 };
   int16_t sample = 0;
-  if(audioOn && ch1On) {
-    ch1DutyTimer++;
-    if(ch1DutyTimer == 0x0800) {
-      ch1DutyTimer = ch1Period;
-      ch1DutyStep = (ch1DutyStep + 1) & 0x07;
-    }
-    sample = envelope[ch1DutyStep];
+  if(nr52) {
+    sample += ch1.tick();
+    sample += ch2.tick();
   }
   emitSample(sample);
 }
@@ -86,11 +80,8 @@ void DMG::apuTick() {
 void DMG::divAPU() {
   static uint8_t subdiv = 0;
   if(!(subdiv & 0x01)) {
-    // clock length
-    if(ch1On) {
-      ch1Length = (ch1Length + 1) & 0x3f;
-      ch1On = ch1Length;
-    }
+    ch1.clockLength();
+    ch2.clockLength();
   }
   subdiv++;
 }
