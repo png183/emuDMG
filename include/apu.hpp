@@ -18,10 +18,11 @@ private:
   uint8_t initVolume;
   uint8_t sweepPace;
   uint16_t period;
-  bool channelOn;
   bool lengthEnable;
 
   // internal state
+  bool dacOn;
+  bool channelOn;
   uint16_t dutyTimer;
   uint8_t dutyStep;
   uint8_t sweepStep;

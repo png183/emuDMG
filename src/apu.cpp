@@ -8,8 +8,10 @@ void Channel::writeNRx1(uint8_t data) {
 
 void Channel::writeNRx2(uint8_t data) {
   // todo: implement bit 3
+  dacOn = data & 0xf8;
   initVolume = data >> 4;
   sweepPace = data & 0x07;
+  if(!dacOn) channelOn = false;
 }
 
 void Channel::writeNRx3(uint8_t data) {
@@ -21,7 +23,7 @@ void Channel::writeNRx4(uint8_t data) {
   lengthEnable = data & 0x40;
   period &= 0x00ff;
   period |= (data & 0x07) << 8;
-  if(data & 0x80) trigger();
+  if(dacOn && (data & 0x80)) trigger();
 }
 
 void Channel::trigger() {
