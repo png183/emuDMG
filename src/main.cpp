@@ -9,9 +9,22 @@ public:
     window = SDL_CreateWindow("emuDMG", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width * scale, height * scale, SDL_WINDOW_SHOWN);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, width, height);
+
+    //init audio
+    SDL_AudioSpec audioSpecRequested;
+    SDL_AudioSpec audioSpec;
+    audioSpecRequested.freq = 32768;
+    audioSpecRequested.format = AUDIO_S16SYS;
+    audioSpecRequested.channels = 1;
+    audioSpecRequested.samples = audioBufferSize;
+    audioSpecRequested.callback = NULL;  //no callback
+    audioSpecRequested.userdata = NULL;  //no parameter to callback
+    audioOut = SDL_OpenAudioDevice(NULL, 0, &audioSpecRequested, &audioSpec, SDL_AUDIO_ALLOW_ANY_CHANGE);
+    SDL_PauseAudioDevice(audioOut, 0);
   }
 
   ~Emulator() {
+    SDL_CloseAudioDevice(audioOut);
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
@@ -73,14 +86,27 @@ public:
     framebuffer[160 * y + x] = 0xff000000 | colour;
   }
 
+  void emitSample(int16_t sample) override {
+    static int outCnt = 0;
+    outCnt++;
+    if(!(outCnt & 0x1f)) {
+      while(SDL_GetQueuedAudioSize(audioOut) > (audioBufferSize * 2)) {
+        SDL_Delay(1);  //prevent running too far ahead of audio
+      }
+      SDL_QueueAudio(audioOut, &sample, sizeof(int16_t));  //todo: delay if too much audio is queued
+    }
+  }
+
 private:
   const int scale = 3;
   const int width = 160;
   const int height = 144;
+  const int audioBufferSize = 1024;  //must be power of 2
   uint32_t* framebuffer;
   SDL_Window* window;
   SDL_Renderer* renderer;
   SDL_Texture* texture;
+  SDL_AudioDeviceID audioOut;
 };
 
 int main(int argc, char** argv) {

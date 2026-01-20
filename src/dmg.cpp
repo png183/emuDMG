@@ -15,6 +15,10 @@ void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
   dmaActive = false;
   dmaPending[0] = false;
   dmaPending[1] = false;
+
+  // reset APU
+  audioOn = false;
+  ch1On = false;
 }
 
 uint8_t DMG::JOYP() {
@@ -38,6 +42,57 @@ uint8_t DMG::readDMA(uint16_t addr) {
   if(addr < 0xa000) return vram[addr & 0x1fff];
   if(addr < 0xc000) return cart.readRAM(addr);
   return wram[addr & 0x1fff];
+}
+
+void DMG::writeAPU(uint16_t addr, uint8_t data) {
+//  if(addr == 0xff10) { printf("TODO: NR10 write\n"); return; }
+  if(addr == 0xff11) { ch1InitLength = data & 0x3f; return; }
+//  if(addr == 0xff12) { printf("TODO: NR12 write\n"); return; }
+  if(addr == 0xff13) { ch1Period &= 0xff00; ch1Period |= data; return; }
+  if(addr == 0xff14) { ch1On = data & 0x80; ch1Period &= 0x00ff; ch1Period |= (data & 0x07) << 8; return; }
+//  if(addr == 0xff16) { printf("TODO: NR21 write\n"); return; }
+//  if(addr == 0xff17) { printf("TODO: NR22 write\n"); return; }
+//  if(addr == 0xff18) { printf("TODO: NR23 write\n"); return; }
+//  if(addr == 0xff19) { printf("TODO: NR24 write\n"); return; }
+//  if(addr == 0xff1a) { printf("TODO: NR30 write\n"); return; }
+//  if(addr == 0xff1b) { printf("TODO: NR31 write\n"); return; }
+//  if(addr == 0xff1c) { printf("TODO: NR32 write\n"); return; }
+//  if(addr == 0xff1d) { printf("TODO: NR33 write\n"); return; }
+//  if(addr == 0xff1e) { printf("TODO: NR34 write\n"); return; }
+//  if(addr == 0xff20) { printf("TODO: NR41 write\n"); return; }
+//  if(addr == 0xff21) { printf("TODO: NR42 write\n"); return; }
+//  if(addr == 0xff22) { printf("TODO: NR43 write\n"); return; }
+//  if(addr == 0xff23) { printf("TODO: NR44 write\n"); return; }
+//  if(addr == 0xff24) { printf("TODO: NR50 write\n"); return; }
+//  if(addr == 0xff25) { printf("TODO: NR51 write\n"); return; }
+  if(addr == 0xff26) { audioOn = data & 0x80; ch1Length = ch1InitLength; ch1DutyTimer = ch1Period; return; }  // NR52
+//  if(addr >= 0xff30 && addr < 0xff40) { printf("TODO: Wave RAM write\n"); return; }
+}
+
+void DMG::apuTick() {
+  static const int16_t envelope[8] = { 0x0800, 0x0800, 0x0800, 0x0800, ~0x0800, ~0x0800, ~0x0800, ~0x0800 };
+  int16_t sample = 0;
+  if(audioOn && ch1On) {
+    ch1DutyTimer++;
+    if(ch1DutyTimer == 0x0800) {
+      ch1DutyTimer = ch1Period;
+      ch1DutyStep = (ch1DutyStep + 1) & 0x07;
+    }
+    sample = envelope[ch1DutyStep];
+  }
+  emitSample(sample);
+}
+
+void DMG::divAPU() {
+  static uint8_t subdiv = 0;
+  if(!(subdiv & 0x01)) {
+    // clock length
+    if(ch1On) {
+      ch1Length = (ch1Length + 1) & 0x3f;
+      ch1On = ch1Length;
+    }
+  }
+  subdiv++;
 }
 
 void DMG::idle() {
@@ -64,7 +119,7 @@ uint8_t DMG::read8(uint16_t addr) {
   if(addr == 0xff06) return tma;  // TMA
   if(addr == 0xff07) return 0xf8 | tac;  // TAC
   if(addr == 0xff0f) return IF();  // IF
-  if(addr >= 0xff10 && addr < 0xff40) { printf("TODO: Reading address 0x%04x\n", addr); return 0xff; }  // todo: APU
+//  if(addr >= 0xff10 && addr < 0xff40) { printf("TODO: Reading address 0x%04x\n", addr); return 0xff; }  // todo: APU
   if(addr >= 0xff40 && addr < 0xff46) return ppuReadIO(addr);
   if(addr == 0xff46) return dma;  // DMA
   if(addr >= 0xff47 && addr < 0xff4c) return ppuReadIO(addr);
@@ -92,7 +147,7 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   if(addr == 0xff06) { tma = data; return; }  // TMA
   if(addr == 0xff07) { tac = data & 0x07; return; }  // TAC
   if(addr == 0xff0f) { setIF(data); return; }  // IF
-  if(addr >= 0xff10 && addr < 0xff40) return;  // todo: APU
+  if(addr >= 0xff10 && addr < 0xff40) { writeAPU(addr, data); return; }  // APU
   if(addr >= 0xff40 && addr < 0xff46) { ppuWriteIO(addr, data); return; }  // PPU I/O
   if(addr == 0xff46) { DMA(data); return; }  // DMA
   if(addr >= 0xff47 && addr < 0xff4c) { ppuWriteIO(addr, data); return; }  // PPU I/O
@@ -103,6 +158,10 @@ void DMG::write8(uint16_t addr, uint8_t data) {
 
 void DMG::cycle() {
   ppuTick();
+  apuTick();
+
+  // run DIV-APU event if applicable
+  if(!(div & 0x07ff)) divAPU();
 
   // run 1 byte of DMA transfer, if active
   if(dmaActive) {

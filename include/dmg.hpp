@@ -25,11 +25,15 @@ public:
 
   virtual uint8_t pollButtons() { return 0xff; }
   virtual uint8_t pollDpad() { return 0xff; }
+  virtual void emitSample(int16_t volume) { return; }
 
 private:
   uint8_t JOYP();
   void DMA(uint8_t addrHi);
   uint8_t readDMA(uint16_t addr);
+  void writeAPU(uint16_t addr, uint8_t data);
+  void apuTick();
+  void divAPU();
   void cycle();
 
   // joypad register
@@ -40,6 +44,17 @@ private:
   uint8_t tima;
   uint8_t tma;
   uint8_t tac;
+
+  // APU registers
+  uint8_t ch1InitLength;
+  uint16_t ch1Period;
+  bool ch1On;
+  bool audioOn;
+
+  // APU internal state
+  uint16_t ch1DutyTimer;
+  uint8_t ch1DutyStep;
+  uint8_t ch1Length;
 
   // OAM DMA register
   uint8_t dma;
