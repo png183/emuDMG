@@ -18,14 +18,14 @@ void Channel::writeNRx3(uint8_t data) {
 }
 
 void Channel::writeNRx4(uint8_t data) {
-  channelOn = data & 0x80;
   lengthEnable = data & 0x40;
   period &= 0x00ff;
   period |= (data & 0x07) << 8;
-  start();
+  if(data & 0x80) trigger();
 }
 
-void Channel::start() {
+void Channel::trigger() {
+  channelOn = true;
   volume = initVolume;
   dutyTimer = period;
 }
@@ -49,9 +49,9 @@ int16_t Channel::tick() {
 }
 
 void Channel::clockLength() {
-  if(channelOn && lengthEnable) {
+  if(lengthEnable) {
     length = (length + 1) & 0x3f;
-    channelOn = length;  // turn off channel when length counter overflows
+    if(!length) channelOn = false;
   }
 }
 

@@ -79,7 +79,7 @@ void DMG::writeAPU(uint16_t addr, uint8_t data) {
 //  if(addr == 0xff24) { printf("TODO: NR50 write\n"); return; }
 //  if(addr == 0xff25) { printf("TODO: NR51 write\n"); return; }
   if(addr == 0xff25) { nr51 = data; return; }  // NR51
-  if(addr == 0xff26) { nr52 = data & 0x80; ch1.start(); ch2.start(); return; }  // NR52
+  if(addr == 0xff26) { nr52 = data & 0x80; ch1.trigger(); ch2.trigger(); return; }  // NR52
 //  if(addr >= 0xff30 && addr < 0xff40) { printf("TODO: Wave RAM write\n"); return; }
 }
 
