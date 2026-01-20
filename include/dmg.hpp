@@ -32,6 +32,7 @@ private:
   uint8_t JOYP();
   void DMA(uint8_t addrHi);
   uint8_t readDMA(uint16_t addr);
+  uint8_t readAPU(uint16_t addr);
   void writeAPU(uint16_t addr, uint8_t data);
   void apuTick();
   void divAPU();
@@ -51,6 +52,7 @@ private:
   Channel ch2;
 
   // NR52 register
+  uint8_t nr51;  // todo: implement panning
   bool nr52;
 
   // OAM DMA register

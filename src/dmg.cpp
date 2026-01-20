@@ -43,14 +43,28 @@ uint8_t DMG::readDMA(uint16_t addr) {
   return wram[addr & 0x1fff];
 }
 
+uint8_t DMG::readAPU(uint16_t addr) {
+  if(addr == 0xff25) return nr51;  // NR51
+  if(addr == 0xff26) {
+    // NR52
+    uint8_t data = 0x70;
+    if(nr52) data |= 0x80;
+    if(ch2.active()) data |= 0x02;
+    if(ch1.active()) data |= 0x01;
+    return data;
+  }
+  printf("TODO: Reading address 0x%04x\n", addr);
+  return 0xff;
+}
+
 void DMG::writeAPU(uint16_t addr, uint8_t data) {
 //  if(addr == 0xff10) { printf("TODO: NR10 write\n"); return; }
   if(addr == 0xff11) { ch1.writeNRx1(data); return; }
-//  if(addr == 0xff12) { printf("TODO: NR12 write\n"); return; }
+  if(addr == 0xff12) { ch1.writeNRx2(data); return; }
   if(addr == 0xff13) { ch1.writeNRx3(data); return; }
   if(addr == 0xff14) { ch1.writeNRx4(data); return; }
   if(addr == 0xff16) { ch2.writeNRx1(data); return; }
-//  if(addr == 0xff17) { printf("TODO: NR22 write\n"); return; }
+  if(addr == 0xff17) { ch2.writeNRx2(data); return; }
   if(addr == 0xff18) { ch2.writeNRx3(data); return; }
   if(addr == 0xff19) { ch2.writeNRx4(data); return; }
 //  if(addr == 0xff1a) { printf("TODO: NR30 write\n"); return; }
@@ -64,6 +78,7 @@ void DMG::writeAPU(uint16_t addr, uint8_t data) {
 //  if(addr == 0xff23) { printf("TODO: NR44 write\n"); return; }
 //  if(addr == 0xff24) { printf("TODO: NR50 write\n"); return; }
 //  if(addr == 0xff25) { printf("TODO: NR51 write\n"); return; }
+  if(addr == 0xff25) { nr51 = data; return; }  // NR51
   if(addr == 0xff26) { nr52 = data & 0x80; ch1.start(); ch2.start(); return; }  // NR52
 //  if(addr >= 0xff30 && addr < 0xff40) { printf("TODO: Wave RAM write\n"); return; }
 }
@@ -82,6 +97,10 @@ void DMG::divAPU() {
   if(!(subdiv & 0x01)) {
     ch1.clockLength();
     ch2.clockLength();
+  }
+  if(!(subdiv & 0x07)) {
+    ch1.clockEnvelope();
+    ch2.clockEnvelope();
   }
   subdiv++;
 }
@@ -110,7 +129,7 @@ uint8_t DMG::read8(uint16_t addr) {
   if(addr == 0xff06) return tma;  // TMA
   if(addr == 0xff07) return 0xf8 | tac;  // TAC
   if(addr == 0xff0f) return IF();  // IF
-//  if(addr >= 0xff10 && addr < 0xff40) { printf("TODO: Reading address 0x%04x\n", addr); return 0xff; }  // todo: APU
+  if(addr >= 0xff10 && addr < 0xff40) { return readAPU(addr); }  // todo: APU
   if(addr >= 0xff40 && addr < 0xff46) return ppuReadIO(addr);
   if(addr == 0xff46) return dma;  // DMA
   if(addr >= 0xff47 && addr < 0xff4c) return ppuReadIO(addr);
