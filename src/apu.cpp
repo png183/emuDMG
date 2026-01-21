@@ -1,15 +1,15 @@
 #include "apu.hpp"
 
 void Channel::writeNRx1(uint8_t data) {
-  // todo: implement bits 7-6
+  dutyCycle = data >> 6;
   initLength = data & 0x3f;
   length = initLength;
 }
 
 void Channel::writeNRx2(uint8_t data) {
-  // todo: implement bit 3
   dacOn = data & 0xf8;
   initVolume = data >> 4;
+  crescendo = data & 0x08;
   sweepPace = data & 0x07;
   if(!dacOn) channelOn = false;
 }
@@ -37,7 +37,6 @@ bool Channel::active() {
 }
 
 int16_t Channel::tick() {
-  static const int16_t envelope[8] = { 1, 1, 1, 1, -1, -1, -1, -1 };
   int16_t sample = 0;
   if(channelOn) {
     dutyTimer++;
@@ -45,7 +44,14 @@ int16_t Channel::tick() {
       dutyTimer = period;
       dutyStep = (dutyStep + 1) & 0x07;
     }
-    sample = volume * 0x0080 * envelope[dutyStep];
+    bool isHigh = false;
+    switch(dutyCycle) {
+    case 0x00: isHigh = (                 dutyStep != 7); break;
+    case 0x01: isHigh = (dutyStep != 0 && dutyStep != 7); break;
+    case 0x02: isHigh = (dutyStep >  0 && dutyStep <= 4); break;
+    case 0x03: isHigh = (dutyStep == 0 || dutyStep == 7); break;
+    }
+    sample = volume * 0x0080 * (isHigh ? 1 : -1);
   }
   return sample;
 }
@@ -58,12 +64,15 @@ void Channel::clockLength() {
 }
 
 void Channel::clockEnvelope() {
-  // todo: respect bit 3 of NRx2
   if(channelOn && sweepPace) {
     sweepStep = (sweepStep + 1) & 0x07;
     if(sweepStep == sweepPace) {
       sweepStep = 0;
-      if(volume) volume--;
+      if(crescendo) {
+        if(volume != 0x0f) volume++;
+      } else {
+        if(volume) volume--;
+      }
     }
   }
 }

@@ -14,8 +14,10 @@ public:
 
 private:
   // registers
+  uint8_t dutyCycle;
   uint8_t initLength;
   uint8_t initVolume;
+  bool crescendo;
   uint8_t sweepPace;
   uint16_t period;
   bool lengthEnable;
