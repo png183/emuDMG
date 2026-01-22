@@ -39,6 +39,7 @@ public:
   void writeNRx2(uint8_t data);
   void writeNRx3(uint8_t data);
   void writeNRx4(uint8_t data);
+  uint8_t readRAM(uint16_t addr);
   void writeRAM(uint16_t addr, uint8_t data);
   void trigger();
   bool active();

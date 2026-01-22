@@ -71,6 +71,12 @@ uint8_t PPU::STAT() {
 void PPU::scanline(uint8_t y) {
   if(y >= 144) return;
 
+  // draw blank scanline if LCD is disabled
+  if(!(lcdc & 0x80)) {
+    for(uint8_t x = 0; x < 160; x++) plotPixel(x, y, 0x00);
+    return;
+  }
+
   // clear sprite buffer (other scanline buffers will be sufficiently overwritten)
   for(uint8_t x = 0; x < 160; x++) objBuffer[x] = 0x00;
 

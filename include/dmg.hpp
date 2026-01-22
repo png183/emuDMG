@@ -30,6 +30,7 @@ public:
 
 private:
   uint8_t JOYP();
+  uint8_t NR52();
   void DMA(uint8_t addrHi);
   uint8_t readDMA(uint16_t addr);
   uint8_t readAPU(uint16_t addr);

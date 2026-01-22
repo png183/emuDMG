@@ -5,7 +5,7 @@ class Emulator : public DMG {
 public:
   Emulator() {
     SDL_Init(SDL_INIT_EVERYTHING);
-    framebuffer = new uint32_t[width * height];
+    framebuffer = new uint32_t[width * height]();
     window = SDL_CreateWindow("emuDMG", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width * scale, height * scale, SDL_WINDOW_SHOWN);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, width, height);
@@ -93,7 +93,7 @@ public:
       while(SDL_GetQueuedAudioSize(audioOut) > (audioBufferSize * 2)) {
         SDL_Delay(1);  //prevent running too far ahead of audio
       }
-      SDL_QueueAudio(audioOut, &sample, sizeof(int16_t));  //todo: delay if too much audio is queued
+      SDL_QueueAudio(audioOut, &sample, sizeof(int16_t));
     }
   }
 

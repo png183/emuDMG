@@ -29,6 +29,16 @@ uint8_t DMG::JOYP() {
   return data;
 }
 
+uint8_t DMG::NR52() {
+  uint8_t data = 0x70;
+  if(nr52) data |= 0x80;
+  if(ch4.active()) data |= 0x08;
+  if(ch3.active()) data |= 0x04;
+  if(ch2.active()) data |= 0x02;
+  if(ch1.active()) data |= 0x01;
+  return data;
+}
+
 void DMG::DMA(uint8_t data) {
   dma = data;
   dmaPending[1] = true;
@@ -45,16 +55,8 @@ uint8_t DMG::readDMA(uint16_t addr) {
 
 uint8_t DMG::readAPU(uint16_t addr) {
   if(addr == 0xff25) return nr51;  // NR51
-  if(addr == 0xff26) {
-    // NR52
-    uint8_t data = 0x70;
-    if(nr52) data |= 0x80;
-    if(ch4.active()) data |= 0x08;
-    if(ch3.active()) data |= 0x04;
-    if(ch2.active()) data |= 0x02;
-    if(ch1.active()) data |= 0x01;
-    return data;
-  }
+  if(addr == 0xff26) return NR52();  // NR52
+  if(addr >= 0xff30 && addr < 0xff40) return ch3.readRAM(addr);  // wave RAM
   printf("TODO: Reading address 0x%04x\n", addr);
   return 0xff;
 }
@@ -81,7 +83,7 @@ void DMG::writeAPU(uint16_t addr, uint8_t data) {
 //  if(addr == 0xff24) { printf("TODO: NR50 write\n"); return; }
   if(addr == 0xff25) { nr51 = data; return; }  // NR51
   if(addr == 0xff26) { nr52 = data & 0x80; return; }  // NR52
-  if(addr >= 0xff30 && addr < 0xff40) { ch3.writeRAM(addr, data); return; }
+  if(addr >= 0xff30 && addr < 0xff40) { ch3.writeRAM(addr, data); return; }  // wave RAM
 }
 
 void DMG::apuTick() {
@@ -135,10 +137,10 @@ uint8_t DMG::read8(uint16_t addr) {
   if(addr == 0xff06) return tma;  // TMA
   if(addr == 0xff07) return 0xf8 | tac;  // TAC
   if(addr == 0xff0f) return IF();  // IF
-  if(addr >= 0xff10 && addr < 0xff40) { return readAPU(addr); }  // todo: APU
-  if(addr >= 0xff40 && addr < 0xff46) return ppuReadIO(addr);
+  if(addr >= 0xff10 && addr < 0xff40) return readAPU(addr);  // APU I/O
+  if(addr >= 0xff40 && addr < 0xff46) return ppuReadIO(addr);  // PPU I/O
   if(addr == 0xff46) return dma;  // DMA
-  if(addr >= 0xff47 && addr < 0xff4c) return ppuReadIO(addr);
+  if(addr >= 0xff47 && addr < 0xff4c) return ppuReadIO(addr);  // PPU I/O
   if(addr >= 0xff80 && addr < 0xffff) return hram[addr & 0x7f];  // HRAM
   if(addr == 0xffff) return IE();  // IE
   return 0xff;
@@ -163,7 +165,7 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   if(addr == 0xff06) { tma = data; return; }  // TMA
   if(addr == 0xff07) { tac = data & 0x07; return; }  // TAC
   if(addr == 0xff0f) { setIF(data); return; }  // IF
-  if(addr >= 0xff10 && addr < 0xff40) { writeAPU(addr, data); return; }  // APU
+  if(addr >= 0xff10 && addr < 0xff40) { writeAPU(addr, data); return; }  // APU I/O
   if(addr >= 0xff40 && addr < 0xff46) { ppuWriteIO(addr, data); return; }  // PPU I/O
   if(addr == 0xff46) { DMA(data); return; }  // DMA
   if(addr >= 0xff47 && addr < 0xff4c) { ppuWriteIO(addr, data); return; }  // PPU I/O

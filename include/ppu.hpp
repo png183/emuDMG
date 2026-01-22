@@ -38,7 +38,7 @@ private:
   void renderSprites(uint8_t y);
 
   // PPU registers
-  uint8_t lcdc;  // todo: bit 7
+  uint8_t lcdc;
   uint8_t stat;
   uint8_t scy;
   uint8_t scx;

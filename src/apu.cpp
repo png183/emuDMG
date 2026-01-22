@@ -104,6 +104,10 @@ void CH3::writeNRx4(uint8_t data) {
   if(dacOn && (data & 0x80)) trigger();
 }
 
+uint8_t CH3::readRAM(uint16_t addr) {
+  return ram[addr & 0x0f];
+}
+
 void CH3::writeRAM(uint16_t addr, uint8_t data) {
   ram[addr & 0x0f] = data;
 }
