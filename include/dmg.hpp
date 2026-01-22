@@ -51,6 +51,7 @@ private:
   CH2 ch1;  // todo: implement CH1 functionality
   CH2 ch2;
   CH3 ch3;
+  CH4 ch4;
 
   // APU registers
   uint8_t nr51;  // todo: implement panning

@@ -141,3 +141,76 @@ void CH3::clockLength() {
   }
 }
 
+void CH4::writeNRx1(uint8_t data) {
+  initLength = data & 0x3f;
+  length = initLength;
+}
+
+void CH4::writeNRx2(uint8_t data) {
+  dacOn = data & 0xf8;
+  initVolume = data >> 4;
+  crescendo = data & 0x08;
+  sweepPace = data & 0x07;
+  if(!dacOn) channelOn = false;
+}
+
+void CH4::writeNRx3(uint8_t data) {
+  // todo: bit 3
+  clockShift = data >> 4;
+  clockDivider = data & 0x07;
+}
+
+void CH4::writeNRx4(uint8_t data) {
+  lengthEnable = data & 0x40;
+  if(dacOn && (data & 0x80)) trigger();
+}
+
+void CH4::trigger() {
+  channelOn = true;
+  volume = initVolume;
+  clockTimer = 0x00000000;
+  lfsr = 0x0000;
+}
+
+bool CH4::active() {
+  return channelOn;
+}
+
+int16_t CH4::tick() {
+  int16_t sample = 0;
+  if(channelOn) {
+    clockTimer++;
+    uint32_t counterTarget = (clockDivider ? (clockDivider << 2) : 2) * (2 << clockShift);
+    if(clockTimer >= counterTarget) {
+      clockTimer = 0x00000000;
+      dutyStep = (dutyStep + 1) & 0x07;
+      if(!(((lfsr >> 1) ^ lfsr) & 0x01)) lfsr |= 0x8000;
+      lfsr >>= 1;
+    }
+    uint8_t data = (lfsr & 0x01) ? volume : 0;
+    sample = ((data << 1) - 0x0f) * 0x0080;
+  }
+  return sample;
+}
+
+void CH4::clockLength() {
+  if(lengthEnable) {
+    length = (length + 1) & 0x3f;
+    if(!length) channelOn = false;
+  }
+}
+
+void CH4::clockEnvelope() {
+  if(channelOn && sweepPace) {
+    sweepStep = (sweepStep + 1) & 0x07;
+    if(sweepStep == sweepPace) {
+      sweepStep = 0;
+      if(crescendo) {
+        if(volume != 0x0f) volume++;
+      } else {
+        if(volume) volume--;
+      }
+    }
+  }
+}
+

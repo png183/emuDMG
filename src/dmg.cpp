@@ -49,6 +49,7 @@ uint8_t DMG::readAPU(uint16_t addr) {
     // NR52
     uint8_t data = 0x70;
     if(nr52) data |= 0x80;
+    if(ch4.active()) data |= 0x08;
     if(ch3.active()) data |= 0x04;
     if(ch2.active()) data |= 0x02;
     if(ch1.active()) data |= 0x01;
@@ -73,10 +74,10 @@ void DMG::writeAPU(uint16_t addr, uint8_t data) {
   if(addr == 0xff1c) { ch3.writeNRx2(data); return; }
   if(addr == 0xff1d) { ch3.writeNRx3(data); return; }
   if(addr == 0xff1e) { ch3.writeNRx4(data); return; }
-//  if(addr == 0xff20) { printf("TODO: NR41 write\n"); return; }
-//  if(addr == 0xff21) { printf("TODO: NR42 write\n"); return; }
-//  if(addr == 0xff22) { printf("TODO: NR43 write\n"); return; }
-//  if(addr == 0xff23) { printf("TODO: NR44 write\n"); return; }
+  if(addr == 0xff20) { ch4.writeNRx1(data); return; }
+  if(addr == 0xff21) { ch4.writeNRx2(data); return; }
+  if(addr == 0xff22) { ch4.writeNRx3(data); return; }
+  if(addr == 0xff23) { ch4.writeNRx4(data); return; }
 //  if(addr == 0xff24) { printf("TODO: NR50 write\n"); return; }
   if(addr == 0xff25) { nr51 = data; return; }  // NR51
   if(addr == 0xff26) { nr52 = data & 0x80; return; }  // NR52
@@ -89,6 +90,7 @@ void DMG::apuTick() {
     sample += ch1.tick();
     sample += ch2.tick();
     sample += ch3.tick(); ch3.tick();  // channel 3 runs twice as fast
+    sample += ch4.tick();
   }
   emitSample(sample);
 }
@@ -99,10 +101,12 @@ void DMG::divAPU() {
     ch1.clockLength();
     ch2.clockLength();
     ch3.clockLength();
+    ch4.clockLength();
   }
   if(!(subdiv & 0x07)) {
     ch1.clockEnvelope();
     ch2.clockEnvelope();
+    ch4.clockEnvelope();
   }
   subdiv++;
 }
