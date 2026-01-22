@@ -62,10 +62,16 @@ uint8_t DMG::readAPU(uint16_t addr) {
   if(addr == 0xff16) return ch2.readNRx1();  // NR21
   if(addr == 0xff17) return ch2.readNRx2();  // NR22
   if(addr == 0xff19) return ch2.readNRx4();  // NR24
+  if(addr == 0xff1a) return ch3.readNRx0();  // NR30
+  if(addr == 0xff1c) return ch3.readNRx2();  // NR32
+  if(addr == 0xff1e) return ch3.readNRx4();  // NR34
+  if(addr == 0xff21) return ch4.readNRx2();  // NR42
+  if(addr == 0xff22) return ch4.readNRx3();  // NR43
+  if(addr == 0xff23) return ch4.readNRx4();  // NR44
+  if(addr == 0xff24) return nr50;  // NR50
   if(addr == 0xff25) return nr51;  // NR51
   if(addr == 0xff26) return NR52();  // NR52
   if(addr >= 0xff30 && addr < 0xff40) return ch3.readRAM(addr);  // wave RAM
-  printf("TODO: Reading address 0x%04x\n", addr);
   return 0xff;
 }
 

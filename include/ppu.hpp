@@ -7,9 +7,12 @@ public:
     oam = new uint8_t[0xa0];
 
     // initialize PPU state
+    lcdc = 0x00;
     stat = 0x00;
     scx = 0x00;
     lyc = 0x00;
+    wy = 0x00;
+    wx = 0x00;
     scanCycle = 0;
   }
 

@@ -47,12 +47,14 @@ void CH1::writeNRx2(uint8_t data) {
 void CH1::writeNRx3(uint8_t data) {
   period &= 0xff00;
   period |= data;
+  if(!sweepPace) activePeriod = period;
 }
 
 void CH1::writeNRx4(uint8_t data) {
   lengthEnable = data & 0x40;
   period &= 0x00ff;
   period |= (data & 0x07) << 8;
+  if(!sweepPace) activePeriod = period;
   if(dacOn && (data & 0x80)) trigger();
 }
 
@@ -119,6 +121,18 @@ void CH1::clockEnvelope() {
       }
     }
   }
+}
+
+uint8_t CH3::readNRx0() {
+  return dacOn ? 0xff : 0x7f;
+}
+
+uint8_t CH3::readNRx2() {
+  return 0x9f | (volume << 5);
+}
+
+uint8_t CH3::readNRx4() {
+  return 0xbf | lengthEnable;
 }
 
 void CH3::writeNRx0(uint8_t data) {
@@ -188,6 +202,26 @@ void CH3::clockLength() {
   }
 }
 
+uint8_t CH4::readNRx2() {
+  uint8_t data = 0x00;
+  data |= initVolume << 4;
+  if(crescendo) data |= 0x08;
+  data |= envelopePace;
+  return data;
+}
+
+uint8_t CH4::readNRx3() {
+  uint8_t data = 0x00;
+  data |= clockShift << 4;
+  if(lfsrWidth) data |= 0x08;
+  data |= clockDivider;
+  return data;
+}
+
+uint8_t CH4::readNRx4() {
+  return 0xbf | lengthEnable;
+}
+
 void CH4::writeNRx1(uint8_t data) {
   initLength = data & 0x3f;
   length = initLength;
@@ -202,8 +236,8 @@ void CH4::writeNRx2(uint8_t data) {
 }
 
 void CH4::writeNRx3(uint8_t data) {
-  // todo: bit 3
   clockShift = data >> 4;
+  lfsrWidth = data & 0x08;  // todo: implement the effect of this bit
   clockDivider = data & 0x07;
 }
 

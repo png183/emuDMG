@@ -49,6 +49,9 @@ private:
 
 class CH3 {
 public:
+  uint8_t readNRx0();
+  uint8_t readNRx2();
+  uint8_t readNRx4();
   void writeNRx0(uint8_t data);
   void writeNRx1(uint8_t data);
   void writeNRx2(uint8_t data);
@@ -81,6 +84,9 @@ private:
 
 class CH4 {
 public:
+  uint8_t readNRx2();
+  uint8_t readNRx3();
+  uint8_t readNRx4();
   void writeNRx1(uint8_t data);
   void writeNRx2(uint8_t data);
   void writeNRx3(uint8_t data);
@@ -98,6 +104,7 @@ private:
   bool crescendo;
   uint8_t envelopePace;
   uint8_t clockShift;
+  bool lfsrWidth;
   uint8_t clockDivider;
   bool lengthEnable;
 
