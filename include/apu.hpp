@@ -1,7 +1,12 @@
 #include <cstdint>
 
-class CH2 {
+class CH1 {
 public:
+  uint8_t readNRx0();
+  uint8_t readNRx1();
+  uint8_t readNRx2();
+  uint8_t readNRx4();
+  void writeNRx0(uint8_t data);
   void writeNRx1(uint8_t data);
   void writeNRx2(uint8_t data);
   void writeNRx3(uint8_t data);
@@ -10,6 +15,7 @@ public:
   bool active();
   int16_t tick();
   void clockLength();
+  void clockSweep();
   void clockEnvelope();
 
 private:
@@ -18,7 +24,7 @@ private:
   uint8_t initLength;
   uint8_t initVolume;
   bool crescendo;
-  uint8_t sweepPace;
+  uint8_t envelopePace;
   uint16_t period;
   bool lengthEnable;
 
@@ -27,9 +33,18 @@ private:
   bool channelOn;
   uint16_t dutyTimer;
   uint8_t dutyStep;
-  uint8_t sweepStep;
+  uint8_t envelopeStep;
   uint8_t length;
   uint8_t volume;
+  uint16_t activePeriod;
+
+  // CH1 period sweep registers
+  uint8_t sweepPace;
+  bool sweepDirection;
+  uint8_t sweepSize;
+
+  // CH1 period sweep internal state
+  uint8_t sweepStep;
 };
 
 class CH3 {
@@ -81,7 +96,7 @@ private:
   uint8_t initLength;
   uint8_t initVolume;
   bool crescendo;
-  uint8_t sweepPace;
+  uint8_t envelopePace;
   uint8_t clockShift;
   uint8_t clockDivider;
   bool lengthEnable;
@@ -91,7 +106,7 @@ private:
   bool channelOn;
   uint32_t clockTimer;
   uint8_t dutyStep;
-  uint8_t sweepStep;
+  uint8_t envelopeStep;
   uint8_t length;
   uint8_t volume;
   uint16_t lfsr;

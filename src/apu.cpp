@@ -1,47 +1,78 @@
 #include "apu.hpp"
 
-void CH2::writeNRx1(uint8_t data) {
+uint8_t CH1::readNRx0() {
+  uint8_t data = 0x80;
+  data |= sweepPace << 4;
+  if(sweepDirection) data |= 0x08;
+  data |= sweepSize;
+  return data;
+}
+
+uint8_t CH1::readNRx1() {
+  return (dutyCycle << 6) | 0x3f;
+}
+
+uint8_t CH1::readNRx2() {
+  uint8_t data = 0x00;
+  data |= initVolume << 4;
+  if(crescendo) data |= 0x08;
+  data |= envelopePace;
+  return data;
+}
+
+uint8_t CH1::readNRx4() {
+  return 0xbf | lengthEnable;
+}
+
+void CH1::writeNRx0(uint8_t data) {
+  sweepPace = (data >> 4) & 0x07;
+  sweepDirection = data & 0x08;
+  sweepSize = data & 0x07;
+}
+
+void CH1::writeNRx1(uint8_t data) {
   dutyCycle = data >> 6;
   initLength = data & 0x3f;
   length = initLength;
 }
 
-void CH2::writeNRx2(uint8_t data) {
+void CH1::writeNRx2(uint8_t data) {
   dacOn = data & 0xf8;
   initVolume = data >> 4;
   crescendo = data & 0x08;
-  sweepPace = data & 0x07;
+  envelopePace = data & 0x07;
   if(!dacOn) channelOn = false;
 }
 
-void CH2::writeNRx3(uint8_t data) {
+void CH1::writeNRx3(uint8_t data) {
   period &= 0xff00;
   period |= data;
 }
 
-void CH2::writeNRx4(uint8_t data) {
+void CH1::writeNRx4(uint8_t data) {
   lengthEnable = data & 0x40;
   period &= 0x00ff;
   period |= (data & 0x07) << 8;
   if(dacOn && (data & 0x80)) trigger();
 }
 
-void CH2::trigger() {
+void CH1::trigger() {
   channelOn = true;
   volume = initVolume;
-  dutyTimer = period;
+  activePeriod = period;
+  dutyTimer = activePeriod;
 }
 
-bool CH2::active() {
+bool CH1::active() {
   return channelOn;
 }
 
-int16_t CH2::tick() {
+int16_t CH1::tick() {
   int16_t sample = 0;
   if(channelOn) {
     dutyTimer++;
     if(dutyTimer == 0x0800) {
-      dutyTimer = period;
+      dutyTimer = activePeriod;
       dutyStep = (dutyStep + 1) & 0x07;
     }
     bool isHigh = false;
@@ -57,18 +88,30 @@ int16_t CH2::tick() {
   return sample;
 }
 
-void CH2::clockLength() {
+void CH1::clockLength() {
   if(lengthEnable) {
     length = (length + 1) & 0x3f;
     if(!length) channelOn = false;
   }
 }
 
-void CH2::clockEnvelope() {
+void CH1::clockSweep() {
   if(channelOn && sweepPace) {
     sweepStep = (sweepStep + 1) & 0x07;
     if(sweepStep == sweepPace) {
-      sweepStep = 0;
+      sweepStep = 0x00;
+      uint16_t adjustment = activePeriod >> sweepSize;
+      activePeriod = sweepDirection ? (activePeriod - adjustment) : (activePeriod + adjustment);
+      if(activePeriod >= 0x0800) channelOn = false;
+    }
+  }
+}
+
+void CH1::clockEnvelope() {
+  if(channelOn && envelopePace) {
+    envelopeStep = (envelopeStep + 1) & 0x07;
+    if(envelopeStep == envelopePace) {
+      envelopeStep = 0x00;
       if(crescendo) {
         if(volume != 0x0f) volume++;
       } else {
@@ -154,7 +197,7 @@ void CH4::writeNRx2(uint8_t data) {
   dacOn = data & 0xf8;
   initVolume = data >> 4;
   crescendo = data & 0x08;
-  sweepPace = data & 0x07;
+  envelopePace = data & 0x07;
   if(!dacOn) channelOn = false;
 }
 
@@ -205,10 +248,10 @@ void CH4::clockLength() {
 }
 
 void CH4::clockEnvelope() {
-  if(channelOn && sweepPace) {
-    sweepStep = (sweepStep + 1) & 0x07;
-    if(sweepStep == sweepPace) {
-      sweepStep = 0;
+  if(channelOn && envelopePace) {
+    envelopeStep = (envelopeStep + 1) & 0x07;
+    if(envelopeStep == envelopePace) {
+      envelopeStep = 0x00;
       if(crescendo) {
         if(volume != 0x0f) volume++;
       } else {

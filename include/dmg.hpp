@@ -9,6 +9,12 @@ public:
     rom =  new uint8_t[0x100];
     wram = new uint8_t[0x2000];
     hram = new uint8_t[0x7f];
+
+    // reset channels upon initialization
+    ch1 = CH1();
+    ch2 = CH1();
+    ch3 = CH3();
+    ch4 = CH4();
   }
 
   ~DMG() {
@@ -49,12 +55,13 @@ private:
   uint8_t tac;
 
   // APU channels
-  CH2 ch1;  // todo: implement CH1 functionality
-  CH2 ch2;
+  CH1 ch1;
+  CH1 ch2;  // note: ch2 should not call ch1-specific functions (readNRx0(), writeNRx0(), clockSweep())
   CH3 ch3;
   CH4 ch4;
 
   // APU registers
+  uint8_t nr50;  // todo: implement panning
   uint8_t nr51;  // todo: implement panning
   bool nr52;
 
