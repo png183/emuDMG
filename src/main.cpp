@@ -110,6 +110,11 @@ private:
 };
 
 int main(int argc, char** argv) {
+  if(argc != 3) {
+    printf("Usage: dmg [BIOS_PATH] [CART_PATH]\n");
+    exit(0);
+  }
+
   Emulator emulator;
   emulator.init(argv[1], argv[2]);
   emulator.run();
