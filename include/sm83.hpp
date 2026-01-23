@@ -82,6 +82,8 @@ private:
   uint8_t RES(uint8_t bit, uint8_t data);
   uint8_t SET(uint8_t bit, uint8_t data);
 
+  void HCF();
+
   uint8_t a;
   uint8_t f;
   uint8_t b;

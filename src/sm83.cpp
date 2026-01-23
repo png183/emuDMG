@@ -241,7 +241,7 @@ void SM83::instruction() {
   case 0xd0: idle(); RET(!CF());            return;  // RET NC
   case 0xd1: e = pop8(); d = pop8();        return;  // POP DE
   case 0xd2: JP(!CF());                     return;  // JP NC,nn
-  // TODO: HCF
+  case 0xd3: HCF();                         return;
   case 0xd4: CALL(!CF());                   return;  // CALL NC,nn
   case 0xd5: idle(); push8(d); push8(e);    return;  // PUSH DE
   case 0xd6: SUB(fetch8());                 return;  // SUB n
@@ -249,32 +249,32 @@ void SM83::instruction() {
   case 0xd8: idle(); RET(CF());             return;  // RET C
   case 0xd9: RETI();                        return;  // RETI
   case 0xda: JP(CF());                      return;  // JP C,nn
-  // TODO: HCF
+  case 0xdb: HCF();                         return;
   case 0xdc: CALL(CF());                    return;  // CALL C,nn
-  // TODO: HCF
+  case 0xdd: HCF();                         return;
   case 0xde: SBC(fetch8());                 return;  // SBC n
   case 0xdf: RST(0x0018);                   return;  // RST 0x18
   case 0xe0: write8(0xff00 + fetch8(), a);  return;  // LDH (n),A
   case 0xe1: l = pop8(); h = pop8();        return;  // POP HL
   case 0xe2: write8(0xff00 + c, a);         return;  // LDH (C),A
-  // TODO: HCF
-  // TODO: HCF
+  case 0xe3: HCF();                         return;
+  case 0xe4: HCF();                         return;
   case 0xe5: idle(); push8(h); push8(l);    return;  // PUSH HL
   case 0xe6: AND(fetch8());                 return;  // AND n
   case 0xe7: RST(0x0020);                   return;  // RST 0x20
   case 0xe8: sp = addSP(); idle();          return;  // ADD SP,e
   case 0xe9: pc = HL();                     return;  // JP HL
   case 0xea: write8(fetch16(), a);          return;  // LD (nn),A
-  // TODO: HCF
-  // TODO: HCF
-  // TODO: HCF
+  case 0xeb: HCF();                         return;
+  case 0xec: HCF();                         return;
+  case 0xed: HCF();                         return;
   case 0xee: XOR(fetch8());                 return;  // XOR n
   case 0xef: RST(0x0028);                   return;  // RST 0x28
   case 0xf0: a = read8(0xff00 + fetch8());  return;  // LDH A,(n)
   case 0xf1: f = pop8() & 0xf0; a = pop8(); return;  // POP AF
   case 0xf2: a = read8(0xff00 + c);         return;  // LDH A,(C)
   case 0xf3: DI();                          return;  // DI
-  // TODO: HCF
+  case 0xf4: HCF();                         return;
   case 0xf5: idle(); push8(a); push8(f);    return;  // PUSH AF
   case 0xf6: OR(fetch8());                  return;  // OR n
   case 0xf7: RST(0x0030);                   return;  // RST 0x30
@@ -282,8 +282,8 @@ void SM83::instruction() {
   case 0xf9: sp = HL(); idle();             return;  // LD SP,HL
   case 0xfa: a = read8(fetch16());          return;  // LD A,(nn)
   case 0xfb: EI();                          return;  // EI
-  // TODO: HCF
-  // TODO: HCF
+  case 0xfc: HCF();                         return;
+  case 0xfd: HCF();                         return;
   case 0xfe: CP(fetch8());                  return;  // CP n
   case 0xff: RST(0x0038);                   return;  // RST 0x38
 
@@ -1022,5 +1022,9 @@ uint8_t SM83::RES(uint8_t bit, uint8_t data) {
 
 uint8_t SM83::SET(uint8_t bit, uint8_t data) {
   return data | 1 << bit;
+}
+
+void SM83::HCF() {
+  for(;;) idle();
 }
 
