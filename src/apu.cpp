@@ -237,7 +237,7 @@ void CH4::writeNRx2(uint8_t data) {
 
 void CH4::writeNRx3(uint8_t data) {
   clockShift = data >> 4;
-  lfsrWidth = data & 0x08;  // todo: implement the effect of this bit
+  lfsrWidth = data & 0x08;
   clockDivider = data & 0x07;
 }
 
@@ -265,7 +265,12 @@ int16_t CH4::tick() {
     if(clockTimer >= counterTarget) {
       clockTimer = 0x00000000;
       dutyStep = (dutyStep + 1) & 0x07;
-      if(!(((lfsr >> 1) ^ lfsr) & 0x01)) lfsr |= 0x8000;
+      uint16_t newBit = (!(((lfsr >> 1) ^ lfsr) & 0x01)) ? 0x8000 : 0x0000;
+      lfsr |= newBit;
+      if(lfsrWidth) {
+        lfsr &= 0xff7f;
+        lfsr |= newBit >> 8;
+      }
       lfsr >>= 1;
     }
     uint8_t data = (lfsr & 0x01) ? volume : 0;
