@@ -2,10 +2,31 @@
 
 void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
   // load boot ROM and cartridge ROM
-  FILE* f = fopen(fnameBootROM, "rb");
-  fread(rom, sizeof(uint8_t), 0x100, f);
-  fclose(f);
-  cart.loadROM(fnameCartROM);
+  FILE* fb = fopen(fnameBootROM, "rb");
+  if(!fb) {
+    printf("ERROR: %s is not a valid file path\n", fnameBootROM);
+    exit(0);
+  }
+  fread(rom, sizeof(uint8_t), 0x100, fb);
+  fclose(fb);
+
+  // load cartridge ROM
+  const int maxRomSize = 0x200000;  // MBC1 maximum ROM size
+  uint8_t* cartRom = new uint8_t[maxRomSize];
+  FILE* fc = fopen(fnameCartROM, "rb");
+  if(!fc) {
+    printf("ERROR: %s is not a valid file path\n", fnameCartROM);
+    exit(0);
+  }
+  int fsize = fread(cartRom, sizeof(uint8_t), maxRomSize, fc);
+  fclose(fc);
+  printf("Loaded %s\n", fnameCartROM);
+
+  // pre-mirror cartridge ROM to fill 2MiB address space
+  for(int i = 0; (i + fsize) <= maxRomSize; i += fsize) memcpy(cartRom + i, cartRom, fsize);
+
+  // initialize cartridge with its ROM data
+  cart.loadROM(cartRom);
 
   // reset I/O
   joyp = 0x00;

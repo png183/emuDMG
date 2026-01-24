@@ -1,18 +1,8 @@
 #include "cart.hpp"
 
-void Cart::loadROM(char* fname) {
-  // load ROM from file
-  FILE* f = fopen(fname, "rb");
-  if(!f) {
-    printf("ERROR: %s is not a valid file path\n", fname);
-    exit(0);
-  }
-  int fsize = fread(rom, sizeof(uint8_t), maxRomSize, f);
-  fclose(f);
-  printf("Loaded %s\n", fname);
-
-  // pre-mirror ROM to fill 2MiB address space
-  for(int i = 0; (i + fsize) <= maxRomSize; i += fsize) memcpy(rom + i, rom, fsize);
+void Cart::loadROM(uint8_t* cartRom) {
+  // load ROM data
+  rom = cartRom;
 
   // init mapper (todo: support non-MBC1 mappers)
   ramg = false;
