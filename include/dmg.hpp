@@ -83,7 +83,7 @@ private:
   uint16_t dmaAddr;
 
   // Memory
-  Cart cart;
+  Cart* cart;
   uint8_t* rom;
   uint8_t* wram;
   uint8_t* hram;

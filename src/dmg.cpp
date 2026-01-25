@@ -11,7 +11,7 @@ void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
   fclose(fb);
 
   // load cartridge ROM
-  const int maxRomSize = 0x200000;  // MBC1 maximum ROM size
+  const int maxRomSize = 0x800000;  // MBC5 maximum ROM size (8MiB)
   uint8_t* cartRom = new uint8_t[maxRomSize];
   FILE* fc = fopen(fnameCartROM, "rb");
   if(!fc) {
@@ -22,11 +22,29 @@ void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
   fclose(fc);
   printf("Loaded %s\n", fnameCartROM);
 
-  // pre-mirror cartridge ROM to fill 2MiB address space
+  // pre-mirror cartridge ROM to fill 8MiB address space
   for(int i = 0; (i + fsize) <= maxRomSize; i += fsize) memcpy(cartRom + i, cartRom, fsize);
 
-  // initialize cartridge with its ROM data
-  cart.loadROM(cartRom);
+  // initialize cartridge
+  uint8_t mapper = cartRom[0x0147];
+  switch(mapper) {
+  case 0x00: cart = new Cart(); break;
+  case 0x01: cart = new MBC1(); break;  // todo: no RAM
+  case 0x02: cart = new MBC1(); break;
+  case 0x03: cart = new MBC1(); break;  // todo: has battery
+  case 0x19: cart = new MBC5(); break;  // todo: no RAM
+  case 0x1a: cart = new MBC5(); break;
+  case 0x1b: cart = new MBC5(); break;  // todo: has battery
+  case 0x1c: cart = new MBC5(); break;  // todo: no RAM, has rumble
+  case 0x1d: cart = new MBC5(); break;  // todo: has rumble
+  case 0x1e: cart = new MBC5(); break;  // todo: has battery and rumble
+  default:
+    printf("Unsupported mapper 0x%02x\n", mapper);
+    exit(0);
+    break;
+  }
+  printf("Mapper: 0x%02x\n", mapper);
+  cart->loadROM(cartRom);
 
   // reset I/O
   joyp = 0x00;
@@ -69,9 +87,9 @@ void DMG::DMA(uint8_t data) {
 
 uint8_t DMG::readDMA(uint16_t addr) {
   // OAM DMA uses a simpler address decoding scheme
-  if(addr < 0x8000) return cart.readROM(addr);
+  if(addr < 0x8000) return cart->readROM(addr);
   if(addr < 0xa000) return vram[addr & 0x1fff];
-  if(addr < 0xc000) return cart.readRAM(addr);
+  if(addr < 0xc000) return cart->readRAM(addr);
   return wram[addr & 0x1fff];
 }
 
@@ -157,9 +175,9 @@ uint8_t DMG::read8(uint16_t addr) {
   cycle();
 
   if(addr < 0x0100 && !boot) return rom[addr & 0xff];  // boot ROM
-  if(addr < 0x8000) return cart.readROM(addr);  // cartridge ROM region
+  if(addr < 0x8000) return cart->readROM(addr);  // cartridge ROM region
   if(addr < 0xa000) return vram[addr & 0x1fff];  // VRAM
-  if(addr < 0xc000) return cart.readRAM(addr);  // cartridge RAM region
+  if(addr < 0xc000) return cart->readRAM(addr);  // cartridge RAM region
   if(addr < 0xfe00) return wram[addr & 0x1fff];  // WRAM and echo RAM regions
   if(addr < 0xfea0) return dmaActive ? 0xff : oam[addr & 0xff];  // OAM (todo: more accurately limit accessible regions while DMA is active)
   if(addr < 0xff00) return 0x00;  // unused part of OAM region
@@ -185,9 +203,9 @@ uint8_t DMG::read8(uint16_t addr) {
 void DMG::write8(uint16_t addr, uint8_t data) {
   cycle();
 
-  if(addr < 0x8000) { cart.writeROM(addr, data); return; }  // cartridge ROM region
+  if(addr < 0x8000) { cart->writeROM(addr, data); return; }  // cartridge ROM region
   if(addr < 0xa000) { vram[addr & 0x1fff] = data; return; }  // VRAM
-  if(addr < 0xc000) { cart.writeRAM(addr, data); return; }  // cartridge RAM region
+  if(addr < 0xc000) { cart->writeRAM(addr, data); return; }  // cartridge RAM region
   if(addr < 0xfe00) { wram[addr & 0x1fff] = data; return; }  // WRAM and echo RAM regions
   if(addr < 0xfea0) { if(!dmaActive) oam[addr & 0xff] = data; return; }  // OAM (todo: more accurately limit accessible regions while DMA is active)
   if(addr < 0xff00) return;  // unused part of OAM region
