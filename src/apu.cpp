@@ -21,7 +21,9 @@ uint8_t CH1::readNRx2() {
 }
 
 uint8_t CH1::readNRx4() {
-  return 0xbf | lengthEnable;
+  uint8_t data = 0xbf;
+  if(lengthEnable) data |= 0x40;
+  return data;
 }
 
 void CH1::writeNRx0(uint8_t data) {
@@ -132,7 +134,9 @@ uint8_t CH3::readNRx2() {
 }
 
 uint8_t CH3::readNRx4() {
-  return 0xbf | lengthEnable;
+  uint8_t data = 0xbf;
+  if(lengthEnable) data |= 0x40;
+  return data;
 }
 
 void CH3::writeNRx0(uint8_t data) {
@@ -219,7 +223,9 @@ uint8_t CH4::readNRx3() {
 }
 
 uint8_t CH4::readNRx4() {
-  return 0xbf | lengthEnable;
+  uint8_t data = 0xbf;
+  if(lengthEnable) data |= 0x40;
+  return data;
 }
 
 void CH4::writeNRx1(uint8_t data) {
