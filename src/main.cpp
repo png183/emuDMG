@@ -73,10 +73,16 @@ public:
     //todo: support alternate key bindings
     uint8_t data = 0xff;
     const uint8_t* keys = SDL_GetKeyboardState(NULL);
-    if(keys[SDL_SCANCODE_DOWN ]) data &= ~0x08;  //DOWN
-    if(keys[SDL_SCANCODE_UP   ]) data &= ~0x04;  //UP
-    if(keys[SDL_SCANCODE_LEFT ]) data &= ~0x02;  //LEFT
-    if(keys[SDL_SCANCODE_RIGHT]) data &= ~0x01;  //RIGHT
+    if(keys[SDL_SCANCODE_DOWN]) {
+      data &= ~0x08;  //DOWN
+    } else if(keys[SDL_SCANCODE_UP]) {
+      data &= ~0x04;  //UP
+    }
+    if(keys[SDL_SCANCODE_LEFT]) {
+      data &= ~0x02;  //LEFT
+    } else if(keys[SDL_SCANCODE_RIGHT]) {
+      data &= ~0x01;  //RIGHT
+    }
     return data;
   }
 
