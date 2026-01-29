@@ -1,7 +1,7 @@
 #include "dmg.hpp"
 
 void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
-  // load boot ROM and cartridge ROM
+  // load boot ROM
   FILE* fb = fopen(fnameBootROM, "rb");
   if(!fb) {
     printf("ERROR: %s is not a valid file path\n", fnameBootROM);
@@ -25,26 +25,42 @@ void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
   // pre-mirror cartridge ROM to fill 8MiB address space
   for(int i = 0; (i + fsize) <= maxRomSize; i += fsize) memcpy(cartRom + i, cartRom, fsize);
 
-  // initialize cartridge
+  // initialize mapper
   uint8_t mapper = cartRom[0x0147];
+  bool hasRam = false;
   switch(mapper) {
-  case 0x00: cart = new Cart(); break;
-  case 0x01: cart = new MBC1(); break;  // todo: no RAM
-  case 0x02: cart = new MBC1(); break;
-  case 0x03: cart = new MBC1(); break;  // todo: has battery
-  case 0x19: cart = new MBC5(); break;  // todo: no RAM
-  case 0x1a: cart = new MBC5(); break;
-  case 0x1b: cart = new MBC5(); break;  // todo: has battery
-  case 0x1c: cart = new MBC5(); break;  // todo: no RAM, has rumble
-  case 0x1d: cart = new MBC5(); break;  // todo: has rumble
-  case 0x1e: cart = new MBC5(); break;  // todo: has battery and rumble
+  case 0x00:                cart = new Cart(); break;
+  case 0x01:                cart = new MBC1(); break;
+  case 0x02: hasRam = true; cart = new MBC1(); break;
+  case 0x03: hasRam = true; cart = new MBC1(); break;  // todo: has battery
+  case 0x19:                cart = new MBC5(); break;
+  case 0x1a: hasRam = true; cart = new MBC5(); break;
+  case 0x1b: hasRam = true; cart = new MBC5(); break;  // todo: has battery
+  case 0x1c:                cart = new MBC5(); break;  // todo: has rumble
+  case 0x1d: hasRam = true; cart = new MBC5(); break;  // todo: has rumble
+  case 0x1e: hasRam = true; cart = new MBC5(); break;  // todo: has battery and rumble
   default:
     printf("Unsupported mapper 0x%02x\n", mapper);
     exit(0);
     break;
   }
   printf("Mapper: 0x%02x\n", mapper);
-  cart->loadROM(cartRom);
+
+  // load cartridge RAM
+  uint8_t* cartRam = NULL;
+  uint32_t cartRamMask = 0x00000;
+  if(hasRam) {
+    cartRam = new uint8_t[0x20000];  // maximum RAM size (128KiB)
+    switch(cartRom[0x0149]) {
+    case 0x02: cartRamMask = 0x01fff; break;
+    case 0x03: cartRamMask = 0x07fff; break;
+    case 0x04: cartRamMask = 0x1ffff; break;
+    case 0x05: cartRamMask = 0x0ffff; break;
+    }
+  }
+
+  // load cartridge
+  cart->load(cartRom, cartRam, cartRamMask);
 
   // reset I/O
   joyp = 0x00;

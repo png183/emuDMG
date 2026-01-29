@@ -30,17 +30,17 @@ void MBC1::writeROM(uint16_t addr, uint8_t data) {
 }
 
 uint8_t MBC1::readRAM(uint16_t addr) {
-  if(!ramg) return 0xff;
+  if(!ram || !ramg) return 0xff;
   uint16_t ramAddr = addr & 0x1fff;
   if(mode) ramAddr |= bank2 << 13;
-  return ram[ramAddr];
+  return ram[ramAddr & ramMask];
 }
 
 void MBC1::writeRAM(uint16_t addr, uint8_t data) {
-  if(!ramg) return;
+  if(!ram || !ramg) return;
   uint16_t ramAddr = addr & 0x1fff;
   if(mode) ramAddr |= bank2 << 13;
-  ram[ramAddr] = data;
+  ram[ramAddr & ramMask] = data;
 }
 
 uint8_t MBC5::readROM(uint16_t addr) {
@@ -76,14 +76,14 @@ void MBC5::writeROM(uint16_t addr, uint8_t data) {
 }
 
 uint8_t MBC5::readRAM(uint16_t addr) {
-  if(!ramg) return 0xff;
+  if(!ram || !ramg) return 0xff;
   uint16_t ramAddr = (ramb << 13) | (addr & 0x1fff);
-  return ram[ramAddr];
+  return ram[ramAddr & ramMask];
 }
 
 void MBC5::writeRAM(uint16_t addr, uint8_t data) {
-  if(!ramg) return;
+  if(!ram || !ramg) return;
   uint16_t ramAddr = (ramb << 13) | (addr & 0x1fff);
-  ram[ramAddr] = data;
+  ram[ramAddr & ramMask] = data;
 }
 
