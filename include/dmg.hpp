@@ -3,6 +3,8 @@
 #include "apu.hpp"
 #include "cart.hpp"
 
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 class DMG : public SM83, public PPU {

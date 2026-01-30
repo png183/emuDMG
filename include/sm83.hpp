@@ -1,6 +1,4 @@
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
 
 class SM83 {
 public:
@@ -45,6 +43,7 @@ private:
   void RLA();
   void RRA();
   void ADD16(uint16_t data);
+  void STOP();
   void JR(bool cond);
   void DAA();
   void CPL();

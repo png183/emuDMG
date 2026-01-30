@@ -40,7 +40,7 @@ void SM83::instruction() {
   case 0x0d: c = DEC(c);                     return;  // DEC C
   case 0x0e: c = fetch8();                   return;  // LD C,n
   case 0x0f: RRCA();                         return;  // RRCA
-  // TODO: STOP
+  case 0x10: STOP();                         return;  // STOP
   case 0x11: e = fetch8(); d = fetch8();     return;  // LD DE,nn
   case 0x12: write8(d << 8 | e, a);          return;  // LD (DE),A
   case 0x13: if(!(++e)) d++; idle();         return;  // INC DE
@@ -289,8 +289,7 @@ void SM83::instruction() {
 
   }
 
-  printf("Unimplemented instruction 0x%02x\n", ir);
-  exit(0);
+  //unreachable
 }
 
 void SM83::instructionCB() {
@@ -745,6 +744,10 @@ void SM83::ADD16(uint16_t data) {
   h = result >> 8;
   l = result;
   idle();
+}
+
+void SM83::STOP() {
+  // todo: implement cases where STOP acts differently from a NOP
 }
 
 void SM83::JR(bool cond) {
