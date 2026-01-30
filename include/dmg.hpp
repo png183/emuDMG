@@ -37,7 +37,6 @@ public:
   virtual void emitSample(int16_t volume) { return; }
 
 private:
-  uint8_t JOYP();
   uint8_t NR52();
   void DMA(uint8_t addrHi);
   uint8_t readDMA(uint16_t addr);
@@ -45,6 +44,7 @@ private:
   void writeAPU(uint16_t addr, uint8_t data);
   void apuTick();
   void divAPU();
+  void joypadTick();
   void cycle();
 
   // joypad register

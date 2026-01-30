@@ -76,15 +76,6 @@ void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
   nr52 = false;
 }
 
-uint8_t DMG::JOYP() {
-  // todo: is JOYP = 0x00 handled correctly?
-  // todo: are bits 7 and 6 handled correctly?
-  uint8_t data = 0xcf | joyp;
-  if(!(joyp & 0x20)) data &= pollButtons();
-  if(!(joyp & 0x10)) data &= pollDpad();
-  return data;
-}
-
 uint8_t DMG::NR52() {
   uint8_t data = 0x70;
   if(nr52) data |= 0x80;
@@ -199,7 +190,7 @@ uint8_t DMG::read8(uint16_t addr) {
   if(addr < 0xff00) return 0x00;  // unused part of OAM region
 
   // I/O region
-  if(addr == 0xff00) return JOYP();  // JOYP
+  if(addr == 0xff00) return 0xc0 | joyp;  // JOYP
   if(addr == 0xff01) return 0x00;  // todo: SB
   if(addr == 0xff02) return 0x7e;  // todo: SC
   if(addr == 0xff04) return div >> 6;  // DIV
@@ -227,7 +218,7 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   if(addr < 0xff00) return;  // unused part of OAM region
 
   // I/O region
-  if(addr == 0xff00) { joyp = data & 0x30; return; }  // JOYP
+  if(addr == 0xff00) { joyp &= 0xcf; joyp |= data & 0x30; return; }  // JOYP
   if(addr == 0xff01) return;  // todo: SB
   if(addr == 0xff02) return;  // todo: SC
   if(addr == 0xff04) { div = 0x0000; return; }  // DIV
@@ -244,9 +235,25 @@ void DMG::write8(uint16_t addr, uint8_t data) {
   if(addr == 0xffff) { setIE(data); return; }  // IE
 }
 
+void DMG::joypadTick() {
+  // determine new JOYP state
+  // todo: is (joyp & 0x30) == 0x00 handled correctly?
+  uint8_t data = 0x0f;
+  if(!(joyp & 0x20)) data &= pollButtons();
+  if(!(joyp & 0x10)) data &= pollDpad();
+
+  // check for interrupt
+  if((joyp & data) != (joyp & 0x0f)) setIF(IF() | 0x10);
+
+  // update JOYP
+  joyp &= 0xf0;
+  joyp |= data;
+}
+
 void DMG::cycle() {
   ppuTick();
   apuTick();
+  joypadTick();
 
   // run DIV-APU event if applicable
   if(!(div & 0x07ff)) divAPU();
