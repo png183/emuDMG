@@ -30,11 +30,88 @@ public:
     SDL_DestroyWindow(window);
     SDL_Quit();
     delete[] framebuffer;
+    delete[] savePath;
+    delete cart;
   }
 
-  void init(char* fnameBootROM, char* fnameCartROM) {
-    reset();
-    loadROM(fnameBootROM, fnameCartROM);
+  void loadCart(char* fname) {
+    // load cartridge ROM
+    const int maxRomSize = 0x800000;  // MBC5 maximum ROM size (8MiB)
+    uint8_t* cartRom = new uint8_t[maxRomSize];
+    FILE* fc = fopen(fname, "rb");
+    if(!fc) {
+      printf("ERROR: %s is not a valid file path\n", fname);
+      exit(0);
+    }
+    int fsize = fread(cartRom, sizeof(uint8_t), maxRomSize, fc);
+    fclose(fc);
+    printf("Loaded %s\n", fname);
+
+    // pre-mirror cartridge ROM to fill 8MiB address space
+    for(int i = 0; (i + fsize) <= maxRomSize; i += fsize) memcpy(cartRom + i, cartRom, fsize);
+
+    // initialize mapper
+    uint8_t mapper = cartRom[0x0147];
+    bool hasRam = false;
+    switch(mapper) {
+    case 0x00:                cart = new Cart(); break;
+    case 0x01:                cart = new MBC1(); break;
+    case 0x02: hasRam = true; cart = new MBC1(); break;
+    case 0x03: hasRam = true; cart = new MBC1(); break;  // todo: has battery
+    case 0x19:                cart = new MBC5(); break;
+    case 0x1a: hasRam = true; cart = new MBC5(); break;
+    case 0x1b: hasRam = true; cart = new MBC5(); break;  // todo: has battery
+    case 0x1c:                cart = new MBC5(); break;  // todo: has rumble
+    case 0x1d: hasRam = true; cart = new MBC5(); break;  // todo: has rumble
+    case 0x1e: hasRam = true; cart = new MBC5(); break;  // todo: has battery and rumble
+    default:
+      printf("Unsupported mapper 0x%02x\n", mapper);
+      exit(0);
+      break;
+    }
+    printf("Mapper: 0x%02x\n", mapper);
+
+    // load cartridge RAM
+    uint8_t* cartRam = NULL;
+    uint32_t cartRamMask = 0x00000;
+    if(hasRam) {
+      cartRam = new uint8_t[0x20000];  // maximum RAM size (128KiB)
+      switch(cartRom[0x0149]) {
+      case 0x02: cartRamMask = 0x01fff; break;
+      case 0x03: cartRamMask = 0x07fff; break;
+      case 0x04: cartRamMask = 0x1ffff; break;
+      case 0x05: cartRamMask = 0x0ffff; break;
+      default:
+        printf("ERROR: Cartridge header specifies RAM without quantity\n");
+        exit(0);
+        break;
+      }
+    }
+
+    // load save file, if present
+    // todo: only load save data if cart has battery
+    savePath = new char[strlen(fname) + 5];
+    sprintf(savePath, "%s.sav", fname);
+    if(hasRam) {
+      FILE* fs = fopen(savePath, "rb");
+      if(fs) {
+        fread(cartRam, sizeof(uint8_t), cartRamMask + 1, fs);
+        fclose(fs);
+      }
+    }
+
+    // load cartridge
+    cart->load(cartRom, cartRam, cartRamMask);
+  }
+
+  void save() {
+    // todo: only write save data if cart has battery
+    uint8_t* saveData = cart->getRAM();
+    if(saveData) {
+      FILE* f = fopen(savePath, "wb");
+      fwrite(saveData, sizeof(uint8_t), cart->getSizeRAM(), f);
+      fclose(f);
+    }
   }
 
   void frame() override {
@@ -48,6 +125,7 @@ public:
     while(SDL_PollEvent(&event)) {
       switch(event.type) {
       case SDL_QUIT:
+        save();
         exit(0);
         return;
       }
@@ -55,6 +133,7 @@ public:
   }
 
   void run() {
+    insertCart(cart);
     for(;;) instruction();
   }
 
@@ -113,6 +192,9 @@ private:
   SDL_Renderer* renderer;
   SDL_Texture* texture;
   SDL_AudioDeviceID audioOut;
+
+  char* savePath;
+  Cart* cart;
 };
 
 int main(int argc, char** argv) {
@@ -122,7 +204,8 @@ int main(int argc, char** argv) {
   }
 
   Emulator emulator;
-  emulator.init(argv[1], argv[2]);
+  emulator.loadBootROM(argv[1]);
+  emulator.loadCart(argv[2]);
   emulator.run();
 
   return 0;

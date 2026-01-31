@@ -1,79 +1,14 @@
 #include "dmg.hpp"
 
-void DMG::loadROM(char* fnameBootROM, char* fnameCartROM) {
+void DMG::loadBootROM(char* fname) {
   // load boot ROM
-  FILE* fb = fopen(fnameBootROM, "rb");
+  FILE* fb = fopen(fname, "rb");
   if(!fb) {
-    printf("ERROR: %s is not a valid file path\n", fnameBootROM);
+    printf("ERROR: %s is not a valid file path\n", fname);
     exit(0);
   }
   fread(rom, sizeof(uint8_t), 0x100, fb);
   fclose(fb);
-
-  // load cartridge ROM
-  const int maxRomSize = 0x800000;  // MBC5 maximum ROM size (8MiB)
-  uint8_t* cartRom = new uint8_t[maxRomSize];
-  FILE* fc = fopen(fnameCartROM, "rb");
-  if(!fc) {
-    printf("ERROR: %s is not a valid file path\n", fnameCartROM);
-    exit(0);
-  }
-  int fsize = fread(cartRom, sizeof(uint8_t), maxRomSize, fc);
-  fclose(fc);
-  printf("Loaded %s\n", fnameCartROM);
-
-  // pre-mirror cartridge ROM to fill 8MiB address space
-  for(int i = 0; (i + fsize) <= maxRomSize; i += fsize) memcpy(cartRom + i, cartRom, fsize);
-
-  // initialize mapper
-  uint8_t mapper = cartRom[0x0147];
-  bool hasRam = false;
-  switch(mapper) {
-  case 0x00:                cart = new Cart(); break;
-  case 0x01:                cart = new MBC1(); break;
-  case 0x02: hasRam = true; cart = new MBC1(); break;
-  case 0x03: hasRam = true; cart = new MBC1(); break;  // todo: has battery
-  case 0x19:                cart = new MBC5(); break;
-  case 0x1a: hasRam = true; cart = new MBC5(); break;
-  case 0x1b: hasRam = true; cart = new MBC5(); break;  // todo: has battery
-  case 0x1c:                cart = new MBC5(); break;  // todo: has rumble
-  case 0x1d: hasRam = true; cart = new MBC5(); break;  // todo: has rumble
-  case 0x1e: hasRam = true; cart = new MBC5(); break;  // todo: has battery and rumble
-  default:
-    printf("Unsupported mapper 0x%02x\n", mapper);
-    exit(0);
-    break;
-  }
-  printf("Mapper: 0x%02x\n", mapper);
-
-  // load cartridge RAM
-  uint8_t* cartRam = NULL;
-  uint32_t cartRamMask = 0x00000;
-  if(hasRam) {
-    cartRam = new uint8_t[0x20000];  // maximum RAM size (128KiB)
-    switch(cartRom[0x0149]) {
-    case 0x02: cartRamMask = 0x01fff; break;
-    case 0x03: cartRamMask = 0x07fff; break;
-    case 0x04: cartRamMask = 0x1ffff; break;
-    case 0x05: cartRamMask = 0x0ffff; break;
-    }
-  }
-
-  // load cartridge
-  cart->load(cartRom, cartRam, cartRamMask);
-
-  // reset I/O
-  joyp = 0x00;
-  tac = 0x00;
-  boot = false;
-
-  // reset DMA state
-  dmaActive = false;
-  dmaPending[0] = false;
-  dmaPending[1] = false;
-
-  // reset APU
-  nr52 = false;
 }
 
 uint8_t DMG::NR52() {

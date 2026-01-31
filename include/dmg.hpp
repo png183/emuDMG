@@ -5,7 +5,6 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 
 class DMG : public SM83, public PPU {
 public:
@@ -14,11 +13,27 @@ public:
     wram = new uint8_t[0x2000];
     hram = new uint8_t[0x7f];
 
+    // reset CPU
+    reset();
+
     // reset channels upon initialization
     ch1 = CH1();
     ch2 = CH1();
     ch3 = CH3();
     ch4 = CH4();
+
+    // reset I/O
+    joyp = 0x00;
+    tac = 0x00;
+    boot = false;
+
+    // reset DMA state
+    dmaActive = false;
+    dmaPending[0] = false;
+    dmaPending[1] = false;
+
+    // reset APU
+    nr52 = false;
   }
 
   ~DMG() {
@@ -27,7 +42,8 @@ public:
     delete[] hram;
   }
 
-  void loadROM(char* fnameBootROM, char* fnameCartROM);
+  void insertCart(Cart* cartridge) { cart = cartridge; }
+  void loadBootROM(char* fname);
   void idle() override;
   uint8_t read8(uint16_t addr) override;
   void write8(uint16_t addr, uint8_t data) override;
