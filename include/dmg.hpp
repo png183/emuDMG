@@ -57,11 +57,12 @@ public:
 private:
   uint8_t NR52();
   void DMA(uint8_t addrHi);
-  uint8_t readDMA(uint16_t addr);
   uint8_t readAPU(uint16_t addr);
   void writeAPU(uint16_t addr, uint8_t data);
   void apuTick();
   void divAPU();
+  uint8_t readBus(uint16_t addr);
+  void writeBus(uint16_t addr, uint8_t data);
   void joypadTick();
   void cycle();
 
