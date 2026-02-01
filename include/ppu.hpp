@@ -10,10 +10,12 @@ public:
     lcdc = 0x00;
     stat = 0x00;
     scx = 0x00;
+    ly = 0x00;
     lyc = 0x00;
     wy = 0x00;
     wx = 0x00;
     scanCycle = 0;
+    irqSTAT = false;
   }
 
   ~PPU() {

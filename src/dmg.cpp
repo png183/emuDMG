@@ -11,6 +11,11 @@ void DMG::loadBootROM(char* fname) {
   fclose(fb);
 }
 
+void DMG::SC(uint8_t data) {
+  sc = data & 0x81;
+  if(sc == 0x81) serialBits = 8;
+}
+
 void DMG::DMA(uint8_t data) {
   dma = data;
   dmaPending[1] = true;
@@ -46,8 +51,8 @@ uint8_t DMG::read8(uint16_t addr) {
 
   // I/O region
   if(addr == 0xff00) return 0xc0 | joyp;  // JOYP
-  if(addr == 0xff01) return 0x00;  // todo: SB
-  if(addr == 0xff02) return 0x7e;  // todo: SC
+  if(addr == 0xff01) return sb;  // SB
+  if(addr == 0xff02) return sc | 0x7e;  // SC
   if(addr == 0xff04) return div >> 6;  // DIV
   if(addr == 0xff05) return tima;  // TIMA
   if(addr == 0xff06) return tma;  // TMA
@@ -71,8 +76,8 @@ void DMG::write8(uint16_t addr, uint8_t data) {
 
   // I/O region
   if(addr == 0xff00) { joyp &= 0xcf; joyp |= data & 0x30; return; }  // JOYP
-  if(addr == 0xff01) return;  // todo: SB
-  if(addr == 0xff02) return;  // todo: SC
+  if(addr == 0xff01) { sb = data; return; }  // SB
+  if(addr == 0xff02) { SC(data); return; }  // SC
   if(addr == 0xff04) { div = 0x0000; return; }  // DIV
   if(addr == 0xff05) { tima = data; return; }  // TIMA
   if(addr == 0xff06) { tma = data; return; }  // TMA
@@ -107,8 +112,21 @@ void DMG::cycle() {
   apuTick();
   joypadTick();
 
-  // run DIV-APU event if applicable
+  // run DIV-APU event, if applicable
   if(!(div & 0x07ff)) divAPU();
+
+  // clock serial port, if active
+  if(!(div & 0x007f)) {
+    if(serialBits && sc == 0x81) {
+      sb <<= 1;
+      sb |= 0x01;  // if serial port is disconnected, always read 1
+      serialBits--;
+      if(!serialBits) {
+        sc &= 0x7f;
+        setIF(IF() | 0x08);
+      }
+    }
+  }
 
   // run 1 byte of DMA transfer, if active
   if(dmaActive) {

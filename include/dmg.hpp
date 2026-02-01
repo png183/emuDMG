@@ -18,10 +18,15 @@ public:
 
     // reset I/O
     joyp = 0x00;
+    sc = 0x00;
+    div = 0x00;
+    tima = 0x00;
+    tma = 0x00;
     tac = 0x00;
     boot = false;
 
-    // reset DMA state
+    // reset internal state
+    serialBits = 0;
     dmaActive = false;
     dmaPending[0] = false;
     dmaPending[1] = false;
@@ -45,14 +50,19 @@ public:
   virtual uint8_t pollDpad() { return 0xff; }
 
 private:
-  void DMA(uint8_t addrHi);
+  void SC(uint8_t data);
+  void DMA(uint8_t data);
   uint8_t readBus(uint16_t addr);
   void writeBus(uint16_t addr, uint8_t data);
   void joypadTick();
   void cycle();
 
-  // joypad register
+  // Joypad register
   uint8_t joyp;
+
+  // Serial registers
+  uint8_t sb;
+  uint8_t sc;
 
   // Timer registers
   uint16_t div;
@@ -65,6 +75,9 @@ private:
 
   // Boot ROM disable register
   bool boot;
+
+  // Serial port internal state
+  uint8_t serialBits;
 
   // Timer circuit internal state
   bool clkTimer;
