@@ -12,6 +12,7 @@ public:
   void writeNRx3(uint8_t data);
   void writeNRx4(uint8_t data);
   void trigger();
+  void disable();
   bool active();
   int16_t tick();
   void clockLength();
@@ -60,6 +61,7 @@ public:
   uint8_t readRAM(uint16_t addr);
   void writeRAM(uint16_t addr, uint8_t data);
   void trigger();
+  void disable();
   bool active();
   int16_t tick();
   void clockLength();
@@ -92,6 +94,7 @@ public:
   void writeNRx3(uint8_t data);
   void writeNRx4(uint8_t data);
   void trigger();
+  void disable();
   bool active();
   int16_t tick();
   void clockLength();
@@ -139,8 +142,6 @@ public:
   void divAPU();
 
 private:
-  uint8_t NR52();
-
   // APU channels
   CH1 ch1;
   CH1 ch2;  // note: ch2 should not call ch1-specific functions (readNRx0(), writeNRx0(), clockSweep())

@@ -1,15 +1,5 @@
 #include "apu.hpp"
 
-uint8_t APU::NR52() {
-  uint8_t data = 0x70;
-  if(nr52) data |= 0x80;
-  if(ch4.active()) data |= 0x08;
-  if(ch3.active()) data |= 0x04;
-  if(ch2.active()) data |= 0x02;
-  if(ch1.active()) data |= 0x01;
-  return data;
-}
-
 uint8_t APU::apuReadIO(uint16_t addr) {
   if(addr == 0xff10) return ch1.readNRx0();  // NR10
   if(addr == 0xff11) return ch1.readNRx1();  // NR11
@@ -26,12 +16,39 @@ uint8_t APU::apuReadIO(uint16_t addr) {
   if(addr == 0xff23) return ch4.readNRx4();  // NR44
   if(addr == 0xff24) return nr50;  // NR50
   if(addr == 0xff25) return nr51;  // NR51
-  if(addr == 0xff26) return NR52();  // NR52
+  if(addr == 0xff26) {
+    // NR52
+    uint8_t data = 0x70;
+    if(nr52) data |= 0x80;
+    if(ch4.active()) data |= 0x08;
+    if(ch3.active()) data |= 0x04;
+    if(ch2.active()) data |= 0x02;
+    if(ch1.active()) data |= 0x01;
+    return data;
+  }
   if(addr >= 0xff30 && addr < 0xff40) return ch3.readRAM(addr);  // wave RAM
   return 0xff;
 }
 
 void APU::apuWriteIO(uint16_t addr, uint8_t data) {
+  if(addr == 0xff20) { ch4.writeNRx1(data); return; }  // NR41
+  if(addr == 0xff26) {
+    // NR52
+    nr52 = data & 0x80;
+    if(!nr52) {
+      ch1.disable();
+      ch2.disable();
+      ch3.disable();
+      ch4.disable();
+      nr50 = 0x00;
+      nr51 = 0x00;
+    }
+    return;
+  }
+  if(addr >= 0xff30 && addr < 0xff40) { ch3.writeRAM(addr, data); return; }  // wave RAM
+
+  // remaining registers are only writable if audio is enabled
+  if(!nr52) return;
   if(addr == 0xff10) { ch1.writeNRx0(data); return; }  // NR10
   if(addr == 0xff11) { ch1.writeNRx1(data); return; }  // NR11
   if(addr == 0xff12) { ch1.writeNRx2(data); return; }  // NR12
@@ -46,14 +63,11 @@ void APU::apuWriteIO(uint16_t addr, uint8_t data) {
   if(addr == 0xff1c) { ch3.writeNRx2(data); return; }  // NR32
   if(addr == 0xff1d) { ch3.writeNRx3(data); return; }  // NR33
   if(addr == 0xff1e) { ch3.writeNRx4(data); return; }  // NR34
-  if(addr == 0xff20) { ch4.writeNRx1(data); return; }  // NR41
   if(addr == 0xff21) { ch4.writeNRx2(data); return; }  // NR42
   if(addr == 0xff22) { ch4.writeNRx3(data); return; }  // NR43
   if(addr == 0xff23) { ch4.writeNRx4(data); return; }  // NR44
   if(addr == 0xff24) { nr50 = data; return; }  // NR50
   if(addr == 0xff25) { nr51 = data; return; }  // NR51
-  if(addr == 0xff26) { nr52 = data & 0x80; return; }  // NR52
-  if(addr >= 0xff30 && addr < 0xff40) { ch3.writeRAM(addr, data); return; }  // wave RAM
 }
 
 void APU::apuTick() {
@@ -149,6 +163,20 @@ void CH1::trigger() {
   volume = initVolume;
   activePeriod = period;
   dutyTimer = activePeriod;
+}
+
+void CH1::disable() {
+  channelOn = false;
+  sweepPace = 0x00;
+  sweepDirection = false;
+  sweepSize = 0x00;
+  dutyCycle = 0x00;
+  dacOn = false;
+  initVolume = 0x00;
+  crescendo = false;
+  envelopePace = 0x00;
+  period = 0x0000;
+  lengthEnable = false;
 }
 
 bool CH1::active() {
@@ -262,6 +290,13 @@ void CH3::trigger() {
   dutyTimer = period;
 }
 
+void CH3::disable() {
+  channelOn = false;
+  dacOn = false;
+  volume = 0x00;
+  lengthEnable = 0x00;
+}
+
 bool CH3::active() {
   return channelOn;
 }
@@ -341,6 +376,18 @@ void CH4::trigger() {
   volume = initVolume;
   clockTimer = 0x00000000;
   lfsr = 0x0000;
+}
+
+void CH4::disable() {
+  channelOn = false;
+  dacOn = false;
+  initVolume = 0x00;
+  crescendo = false;
+  envelopePace = 0x00;
+  clockShift = 0x00;
+  lfsrWidth = false;
+  clockDivider = 0x00;
+  lengthEnable = false;
 }
 
 bool CH4::active() {
