@@ -119,3 +119,37 @@ private:
   uint16_t lfsr;
 };
 
+class APU {
+public:
+  APU() {
+    // reset channels upon initialization
+    ch1 = CH1();
+    ch2 = CH1();
+    ch3 = CH3();
+    ch4 = CH4();
+
+    // reset NR52
+    nr52 = false;
+  }
+
+  virtual void emitSample(int16_t volume) { return; }
+  uint8_t apuReadIO(uint16_t addr);
+  void apuWriteIO(uint16_t addr, uint8_t data);
+  void apuTick();
+  void divAPU();
+
+private:
+  uint8_t NR52();
+
+  // APU channels
+  CH1 ch1;
+  CH1 ch2;  // note: ch2 should not call ch1-specific functions (readNRx0(), writeNRx0(), clockSweep())
+  CH3 ch3;
+  CH4 ch4;
+
+  // APU registers
+  uint8_t nr50;  // todo: implement panning
+  uint8_t nr51;  // todo: implement panning
+  bool nr52;
+};
+

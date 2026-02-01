@@ -1,5 +1,89 @@
 #include "apu.hpp"
 
+uint8_t APU::NR52() {
+  uint8_t data = 0x70;
+  if(nr52) data |= 0x80;
+  if(ch4.active()) data |= 0x08;
+  if(ch3.active()) data |= 0x04;
+  if(ch2.active()) data |= 0x02;
+  if(ch1.active()) data |= 0x01;
+  return data;
+}
+
+uint8_t APU::apuReadIO(uint16_t addr) {
+  if(addr == 0xff10) return ch1.readNRx0();  // NR10
+  if(addr == 0xff11) return ch1.readNRx1();  // NR11
+  if(addr == 0xff12) return ch1.readNRx2();  // NR12
+  if(addr == 0xff14) return ch1.readNRx4();  // NR14
+  if(addr == 0xff16) return ch2.readNRx1();  // NR21
+  if(addr == 0xff17) return ch2.readNRx2();  // NR22
+  if(addr == 0xff19) return ch2.readNRx4();  // NR24
+  if(addr == 0xff1a) return ch3.readNRx0();  // NR30
+  if(addr == 0xff1c) return ch3.readNRx2();  // NR32
+  if(addr == 0xff1e) return ch3.readNRx4();  // NR34
+  if(addr == 0xff21) return ch4.readNRx2();  // NR42
+  if(addr == 0xff22) return ch4.readNRx3();  // NR43
+  if(addr == 0xff23) return ch4.readNRx4();  // NR44
+  if(addr == 0xff24) return nr50;  // NR50
+  if(addr == 0xff25) return nr51;  // NR51
+  if(addr == 0xff26) return NR52();  // NR52
+  if(addr >= 0xff30 && addr < 0xff40) return ch3.readRAM(addr);  // wave RAM
+  return 0xff;
+}
+
+void APU::apuWriteIO(uint16_t addr, uint8_t data) {
+  if(addr == 0xff10) { ch1.writeNRx0(data); return; }  // NR10
+  if(addr == 0xff11) { ch1.writeNRx1(data); return; }  // NR11
+  if(addr == 0xff12) { ch1.writeNRx2(data); return; }  // NR12
+  if(addr == 0xff13) { ch1.writeNRx3(data); return; }  // NR13
+  if(addr == 0xff14) { ch1.writeNRx4(data); return; }  // NR14
+  if(addr == 0xff16) { ch2.writeNRx1(data); return; }  // NR21
+  if(addr == 0xff17) { ch2.writeNRx2(data); return; }  // NR22
+  if(addr == 0xff18) { ch2.writeNRx3(data); return; }  // NR23
+  if(addr == 0xff19) { ch2.writeNRx4(data); return; }  // NR24
+  if(addr == 0xff1a) { ch3.writeNRx0(data); return; }  // NR30
+  if(addr == 0xff1b) { ch3.writeNRx1(data); return; }  // NR31
+  if(addr == 0xff1c) { ch3.writeNRx2(data); return; }  // NR32
+  if(addr == 0xff1d) { ch3.writeNRx3(data); return; }  // NR33
+  if(addr == 0xff1e) { ch3.writeNRx4(data); return; }  // NR34
+  if(addr == 0xff20) { ch4.writeNRx1(data); return; }  // NR41
+  if(addr == 0xff21) { ch4.writeNRx2(data); return; }  // NR42
+  if(addr == 0xff22) { ch4.writeNRx3(data); return; }  // NR43
+  if(addr == 0xff23) { ch4.writeNRx4(data); return; }  // NR44
+  if(addr == 0xff24) { nr50 = data; return; }  // NR50
+  if(addr == 0xff25) { nr51 = data; return; }  // NR51
+  if(addr == 0xff26) { nr52 = data & 0x80; return; }  // NR52
+  if(addr >= 0xff30 && addr < 0xff40) { ch3.writeRAM(addr, data); return; }  // wave RAM
+}
+
+void APU::apuTick() {
+  int16_t sample = 0;
+  if(nr52) {
+    sample += ch1.tick();
+    sample += ch2.tick();
+    sample += ch3.tick(); ch3.tick();  // channel 3 runs twice as fast
+    sample += ch4.tick();
+  }
+  emitSample(sample);
+}
+
+void APU::divAPU() {
+  static uint8_t subdiv = 0;
+  if(!(subdiv & 0x01)) {
+    ch1.clockLength();
+    ch2.clockLength();
+    ch3.clockLength();
+    ch4.clockLength();
+  }
+  if(!(subdiv & 0x03)) ch1.clockSweep();
+  if(!(subdiv & 0x07)) {
+    ch1.clockEnvelope();
+    ch2.clockEnvelope();
+    ch4.clockEnvelope();
+  }
+  subdiv++;
+}
+
 uint8_t CH1::readNRx0() {
   uint8_t data = 0x80;
   data |= sweepPace << 4;

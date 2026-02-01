@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-class DMG : public SM83, public PPU {
+class DMG : public SM83, public PPU, public APU {
 public:
   DMG() {
     rom =  new uint8_t[0x100];
@@ -15,12 +15,6 @@ public:
 
     // reset CPU
     reset();
-
-    // reset channels upon initialization
-    ch1 = CH1();
-    ch2 = CH1();
-    ch3 = CH3();
-    ch4 = CH4();
 
     // reset I/O
     joyp = 0x00;
@@ -31,9 +25,6 @@ public:
     dmaActive = false;
     dmaPending[0] = false;
     dmaPending[1] = false;
-
-    // reset APU
-    nr52 = false;
   }
 
   ~DMG() {
@@ -52,15 +43,9 @@ public:
 
   virtual uint8_t pollButtons() { return 0xff; }
   virtual uint8_t pollDpad() { return 0xff; }
-  virtual void emitSample(int16_t volume) { return; }
 
 private:
-  uint8_t NR52();
   void DMA(uint8_t addrHi);
-  uint8_t readAPU(uint16_t addr);
-  void writeAPU(uint16_t addr, uint8_t data);
-  void apuTick();
-  void divAPU();
   uint8_t readBus(uint16_t addr);
   void writeBus(uint16_t addr, uint8_t data);
   void joypadTick();
@@ -74,17 +59,6 @@ private:
   uint8_t tima;
   uint8_t tma;
   uint8_t tac;
-
-  // APU channels
-  CH1 ch1;
-  CH1 ch2;  // note: ch2 should not call ch1-specific functions (readNRx0(), writeNRx0(), clockSweep())
-  CH3 ch3;
-  CH4 ch4;
-
-  // APU registers
-  uint8_t nr50;  // todo: implement panning
-  uint8_t nr51;  // todo: implement panning
-  bool nr52;
 
   // OAM DMA register
   uint8_t dma;
