@@ -11,7 +11,7 @@ public:
   int getSizeRAM() { return ramMask + 1; }
   void load(uint8_t* cartRom, uint8_t* cartRam, uint32_t cartRamMask) { rom = cartRom; ram = cartRam; ramMask = cartRamMask; return; }
   virtual uint8_t readROM(uint16_t addr) { return rom[addr & 0x7fff]; }
-  virtual void writeROM(uint16_t addr, uint8_t data) { rom[addr & 0x7fff] = data; return; }
+  virtual void writeROM(uint16_t addr, uint8_t data) { return; }
   virtual uint8_t readRAM(uint16_t addr) { return 0xff; }
   virtual void writeRAM(uint16_t addr, uint8_t data) { return; }
 
