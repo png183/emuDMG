@@ -8,9 +8,9 @@ public:
   void setIE(uint8_t data) { _ie = data; }
   uint8_t IF() { return 0xe0 | _if; }
   uint8_t IE() { return _ie; }
-  virtual void idle() { return; }
-  virtual uint8_t read8(uint16_t addr) { return 0xff; }
-  virtual void write8(uint16_t addr, uint8_t data) { return; }
+  virtual void cycleIdle() { return; }
+  virtual uint8_t cycleRead(uint16_t addr) { return 0xff; }
+  virtual void cycleWrite(uint16_t addr, uint8_t data) { return; }
 
 private:
   void instructionCB();

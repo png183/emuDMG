@@ -37,15 +37,24 @@ void DMG::writeBus(uint16_t addr, uint8_t data) {
   return;
 }
 
-void DMG::idle() {
+void DMG::cycleIdle() {
+  cycle();
+}
+
+uint8_t DMG::cycleRead(uint16_t addr) {
+  uint8_t data = read8(addr);
+  cycle();
+  return data;
+}
+
+void DMG::cycleWrite(uint16_t addr, uint8_t data) {
+  write8(addr, data);
   cycle();
 }
 
 uint8_t DMG::read8(uint16_t addr) {
-  cycle();
-
   if(addr < 0x0100 && !boot) return rom[addr & 0xff];
-  if(addr < 0xfe00) return dmaActive ? 0xff : readBus(addr);
+  if(addr < 0xfe00) return readBus(addr);
   if(addr < 0xfea0) return dmaActive ? 0xff : oam[addr & 0xff];
   if(addr < 0xff00) return 0x00;  // unused part of OAM region
 
@@ -68,9 +77,7 @@ uint8_t DMG::read8(uint16_t addr) {
 }
 
 void DMG::write8(uint16_t addr, uint8_t data) {
-  cycle();
-
-  if(addr < 0xfe00) { if(!dmaActive) writeBus(addr, data); return; }
+  if(addr < 0xfe00) return writeBus(addr, data);
   if(addr < 0xfea0) { if(!dmaActive) oam[addr & 0xff] = data; return; }
   if(addr < 0xff00) return;  // unused part of OAM region
 

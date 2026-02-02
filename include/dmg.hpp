@@ -40,9 +40,9 @@ public:
 
   void insertCart(Cart* cartridge) { cart = cartridge; }
   void loadBootROM(char* fname);
-  void idle() override;
-  uint8_t read8(uint16_t addr) override;
-  void write8(uint16_t addr, uint8_t data) override;
+  void cycleIdle() override;
+  uint8_t cycleRead(uint16_t addr) override;
+  void cycleWrite(uint16_t addr, uint8_t data) override;
   void irqRaiseVBLANK() override { setIF(IF() | 0x01); }
   void irqRaiseSTAT() override { setIF(IF() | 0x02); }
 
@@ -54,6 +54,8 @@ private:
   void DMA(uint8_t data);
   uint8_t readBus(uint16_t addr);
   void writeBus(uint16_t addr, uint8_t data);
+  uint8_t read8(uint16_t addr);
+  void write8(uint16_t addr, uint8_t data);
   void joypadTick();
   void cycle();
 
