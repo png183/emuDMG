@@ -5,7 +5,6 @@ public:
   uint8_t readNRx0();
   uint8_t readNRx1();
   uint8_t readNRx2();
-  uint8_t readNRx4();
   void writeNRx0(uint8_t data);
   void writeNRx1(uint8_t data);
   void writeNRx2(uint8_t data);
@@ -27,7 +26,6 @@ private:
   bool crescendo;
   uint8_t envelopePace;
   uint16_t period;
-  bool lengthEnable;
 
   // internal state
   bool dacOn;
@@ -52,7 +50,6 @@ class CH3 {
 public:
   uint8_t readNRx0();
   uint8_t readNRx2();
-  uint8_t readNRx4();
   void writeNRx0(uint8_t data);
   void writeNRx1(uint8_t data);
   void writeNRx2(uint8_t data);
@@ -74,7 +71,6 @@ private:
   uint8_t initLength;
   uint8_t volume;
   uint16_t period;
-  bool lengthEnable;
 
   // internal state
   bool dacOn;
@@ -88,7 +84,6 @@ class CH4 {
 public:
   uint8_t readNRx2();
   uint8_t readNRx3();
-  uint8_t readNRx4();
   void writeNRx1(uint8_t data);
   void writeNRx2(uint8_t data);
   void writeNRx3(uint8_t data);
@@ -109,7 +104,6 @@ private:
   uint8_t clockShift;
   bool lfsrWidth;
   uint8_t clockDivider;
-  bool lengthEnable;
 
   // internal state
   bool dacOn;
@@ -149,8 +143,13 @@ private:
   CH4 ch4;
 
   // APU registers
+  uint8_t lengthEnable[4];  // NRx4, bit 6
   uint8_t nr50;  // todo: implement panning
   uint8_t nr51;  // todo: implement panning
   bool nr52;
+
+  // APU internal state
+  uint8_t subdiv;
+  bool clockLength[4];
 };
 

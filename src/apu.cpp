@@ -4,16 +4,16 @@ uint8_t APU::apuReadIO(uint16_t addr) {
   if(addr == 0xff10) return ch1.readNRx0();  // NR10
   if(addr == 0xff11) return ch1.readNRx1();  // NR11
   if(addr == 0xff12) return ch1.readNRx2();  // NR12
-  if(addr == 0xff14) return ch1.readNRx4();  // NR14
+  if(addr == 0xff14) return (lengthEnable[0] ? 0xff: 0xbf);  // NR14
   if(addr == 0xff16) return ch2.readNRx1();  // NR21
   if(addr == 0xff17) return ch2.readNRx2();  // NR22
-  if(addr == 0xff19) return ch2.readNRx4();  // NR24
+  if(addr == 0xff19) return (lengthEnable[1] ? 0xff: 0xbf);  // NR24
   if(addr == 0xff1a) return ch3.readNRx0();  // NR30
   if(addr == 0xff1c) return ch3.readNRx2();  // NR32
-  if(addr == 0xff1e) return ch3.readNRx4();  // NR34
+  if(addr == 0xff1e) return (lengthEnable[2] ? 0xff: 0xbf);  // NR34
   if(addr == 0xff21) return ch4.readNRx2();  // NR42
   if(addr == 0xff22) return ch4.readNRx3();  // NR43
-  if(addr == 0xff23) return ch4.readNRx4();  // NR44
+  if(addr == 0xff23) return (lengthEnable[3] ? 0xff: 0xbf);  // NR44
   if(addr == 0xff24) return nr50;  // NR50
   if(addr == 0xff25) return nr51;  // NR51
   if(addr == 0xff26) {
@@ -31,6 +31,7 @@ uint8_t APU::apuReadIO(uint16_t addr) {
 }
 
 void APU::apuWriteIO(uint16_t addr, uint8_t data) {
+  if(addr == 0xff1b) { ch3.writeNRx1(data); return; }  // NR31
   if(addr == 0xff20) { ch4.writeNRx1(data); return; }  // NR41
   if(addr == 0xff26) {
     // NR52
@@ -40,6 +41,7 @@ void APU::apuWriteIO(uint16_t addr, uint8_t data) {
       ch2.disable();
       ch3.disable();
       ch4.disable();
+      for(int i = 0; i < 4; i++) lengthEnable[i] = false;
       nr50 = 0x00;
       nr51 = 0x00;
     }
@@ -53,24 +55,35 @@ void APU::apuWriteIO(uint16_t addr, uint8_t data) {
   if(addr == 0xff11) { ch1.writeNRx1(data); return; }  // NR11
   if(addr == 0xff12) { ch1.writeNRx2(data); return; }  // NR12
   if(addr == 0xff13) { ch1.writeNRx3(data); return; }  // NR13
-  if(addr == 0xff14) { ch1.writeNRx4(data); return; }  // NR14
+  if(addr == 0xff14) { lengthEnable[0] = data & 0x40; ch1.writeNRx4(data); return; }  // NR14
   if(addr == 0xff16) { ch2.writeNRx1(data); return; }  // NR21
   if(addr == 0xff17) { ch2.writeNRx2(data); return; }  // NR22
   if(addr == 0xff18) { ch2.writeNRx3(data); return; }  // NR23
-  if(addr == 0xff19) { ch2.writeNRx4(data); return; }  // NR24
+  if(addr == 0xff19) { lengthEnable[1] = data & 0x40; ch2.writeNRx4(data); return; }  // NR24
   if(addr == 0xff1a) { ch3.writeNRx0(data); return; }  // NR30
-  if(addr == 0xff1b) { ch3.writeNRx1(data); return; }  // NR31
   if(addr == 0xff1c) { ch3.writeNRx2(data); return; }  // NR32
   if(addr == 0xff1d) { ch3.writeNRx3(data); return; }  // NR33
-  if(addr == 0xff1e) { ch3.writeNRx4(data); return; }  // NR34
+  if(addr == 0xff1e) { lengthEnable[2] = data & 0x40; ch3.writeNRx4(data); return; }  // NR34
   if(addr == 0xff21) { ch4.writeNRx2(data); return; }  // NR42
   if(addr == 0xff22) { ch4.writeNRx3(data); return; }  // NR43
-  if(addr == 0xff23) { ch4.writeNRx4(data); return; }  // NR44
+  if(addr == 0xff23) { lengthEnable[3] = data & 0x40; ch4.writeNRx4(data); return; }  // NR44
   if(addr == 0xff24) { nr50 = data; return; }  // NR50
   if(addr == 0xff25) { nr51 = data; return; }  // NR51
 }
 
 void APU::apuTick() {
+  // clock length counters
+  uint8_t clockLengthPrev[4];
+  for(int i = 0; i < 4; i++) {
+    clockLengthPrev[i] = clockLength[i];
+    clockLength[i] = (lengthEnable[i] && !(subdiv & 0x01));
+  }
+  if(clockLength[0] && !clockLengthPrev[0]) ch1.clockLength();
+  if(clockLength[1] && !clockLengthPrev[1]) ch2.clockLength();
+  if(clockLength[2] && !clockLengthPrev[2]) ch3.clockLength();
+  if(clockLength[3] && !clockLengthPrev[3]) ch4.clockLength();
+
+  // output sample
   int16_t sample = 0;
   if(nr52) {
     sample += ch1.tick();
@@ -82,13 +95,6 @@ void APU::apuTick() {
 }
 
 void APU::divAPU() {
-  static uint8_t subdiv = 0;
-  if(!(subdiv & 0x01)) {
-    ch1.clockLength();
-    ch2.clockLength();
-    ch3.clockLength();
-    ch4.clockLength();
-  }
   if(!(subdiv & 0x03)) ch1.clockSweep();
   if(!(subdiv & 0x07)) {
     ch1.clockEnvelope();
@@ -115,12 +121,6 @@ uint8_t CH1::readNRx2() {
   data |= initVolume << 4;
   if(crescendo) data |= 0x08;
   data |= envelopePace;
-  return data;
-}
-
-uint8_t CH1::readNRx4() {
-  uint8_t data = 0xbf;
-  if(lengthEnable) data |= 0x40;
   return data;
 }
 
@@ -151,7 +151,6 @@ void CH1::writeNRx3(uint8_t data) {
 }
 
 void CH1::writeNRx4(uint8_t data) {
-  lengthEnable = data & 0x40;
   period &= 0x00ff;
   period |= (data & 0x07) << 8;
   if(!sweepPace) activePeriod = period;
@@ -176,7 +175,6 @@ void CH1::disable() {
   crescendo = false;
   envelopePace = 0x00;
   period = 0x0000;
-  lengthEnable = false;
 }
 
 bool CH1::active() {
@@ -205,10 +203,8 @@ int16_t CH1::tick() {
 }
 
 void CH1::clockLength() {
-  if(lengthEnable) {
-    length = (length + 1) & 0x3f;
-    if(!length) channelOn = false;
-  }
+  length = (length + 1) & 0x3f;
+  if(!length) channelOn = false;
 }
 
 void CH1::clockSweep() {
@@ -245,12 +241,6 @@ uint8_t CH3::readNRx2() {
   return 0x9f | (volume << 5);
 }
 
-uint8_t CH3::readNRx4() {
-  uint8_t data = 0xbf;
-  if(lengthEnable) data |= 0x40;
-  return data;
-}
-
 void CH3::writeNRx0(uint8_t data) {
   dacOn = data & 0x80;
   if(!dacOn) channelOn = false;
@@ -271,7 +261,6 @@ void CH3::writeNRx3(uint8_t data) {
 }
 
 void CH3::writeNRx4(uint8_t data) {
-  lengthEnable = data & 0x40;
   period &= 0x00ff;
   period |= (data & 0x07) << 8;
   if(dacOn && (data & 0x80)) trigger();
@@ -294,7 +283,6 @@ void CH3::disable() {
   channelOn = false;
   dacOn = false;
   volume = 0x00;
-  lengthEnable = 0x00;
 }
 
 bool CH3::active() {
@@ -319,10 +307,8 @@ int16_t CH3::tick() {
 }
 
 void CH3::clockLength() {
-  if(lengthEnable) {
-    length++;
-    if(!length) channelOn = false;
-  }
+  length++;
+  if(!length) channelOn = false;
 }
 
 uint8_t CH4::readNRx2() {
@@ -338,12 +324,6 @@ uint8_t CH4::readNRx3() {
   data |= clockShift << 4;
   if(lfsrWidth) data |= 0x08;
   data |= clockDivider;
-  return data;
-}
-
-uint8_t CH4::readNRx4() {
-  uint8_t data = 0xbf;
-  if(lengthEnable) data |= 0x40;
   return data;
 }
 
@@ -367,7 +347,6 @@ void CH4::writeNRx3(uint8_t data) {
 }
 
 void CH4::writeNRx4(uint8_t data) {
-  lengthEnable = data & 0x40;
   if(dacOn && (data & 0x80)) trigger();
 }
 
@@ -387,7 +366,6 @@ void CH4::disable() {
   clockShift = 0x00;
   lfsrWidth = false;
   clockDivider = 0x00;
-  lengthEnable = false;
 }
 
 bool CH4::active() {
@@ -417,10 +395,8 @@ int16_t CH4::tick() {
 }
 
 void CH4::clockLength() {
-  if(lengthEnable) {
-    length = (length + 1) & 0x3f;
-    if(!length) channelOn = false;
-  }
+  length = (length + 1) & 0x3f;
+  if(!length) channelOn = false;
 }
 
 void CH4::clockEnvelope() {
