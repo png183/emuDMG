@@ -47,7 +47,7 @@ void PPU::ppuTick() {
   bool irqPrevSTAT = irqSTAT;
   irqSTAT = false;
   if((stat & 0x40) && ly == lyc                    ) irqSTAT = true;  // LYC
-  if((stat & 0x20) && ly <  144 && scanCycle <   80) irqSTAT = true;  // mode 2
+  if((stat & 0x20) && ly <= 144 && scanCycle <   80) irqSTAT = true;  // mode 2
   if((stat & 0x10) && ly >= 144                    ) irqSTAT = true;  // mode 1
   if((stat & 0x08) && ly <  144 && scanCycle >= 252) irqSTAT = true;  // mode 0
   if(irqSTAT && !irqPrevSTAT) irqRaiseSTAT();
