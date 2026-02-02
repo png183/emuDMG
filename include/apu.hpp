@@ -14,6 +14,7 @@ public:
   void disable();
   bool active();
   int16_t tick();
+  void calcFrequency();
   void clockLength();
   void clockSweep();
   void clockEnvelope();
