@@ -132,8 +132,9 @@ void CH1::writeNRx0(uint8_t data) {
 
 void CH1::writeNRx1(uint8_t data) {
   dutyCycle = data >> 6;
-  initLength = data & 0x3f;
+  initLength = ~data & 0x3f;
   length = initLength;
+  lengthActive = true;
 }
 
 void CH1::writeNRx2(uint8_t data) {
@@ -159,6 +160,7 @@ void CH1::writeNRx4(uint8_t data) {
 
 void CH1::trigger() {
   channelOn = true;
+  lengthActive = true;
   volume = initVolume;
   activePeriod = period;
   dutyTimer = activePeriod;
@@ -211,8 +213,12 @@ void CH1::calcFrequency() {
 }
 
 void CH1::clockLength() {
-  length = (length + 1) & 0x3f;
-  if(!length) channelOn = false;
+  if(!lengthActive) return;
+  length = (length - 1) & 0x3f;
+  if(length == 0x3f) {
+    channelOn = false;
+    lengthActive = false;
+  }
 }
 
 void CH1::clockSweep() {
@@ -250,8 +256,9 @@ void CH3::writeNRx0(uint8_t data) {
 }
 
 void CH3::writeNRx1(uint8_t data) {
-  initLength = data;
+  initLength = ~data;
   length = initLength;
+  lengthActive = true;
 }
 
 void CH3::writeNRx2(uint8_t data) {
@@ -279,6 +286,7 @@ void CH3::writeRAM(uint16_t addr, uint8_t data) {
 
 void CH3::trigger() {
   channelOn = true;
+  lengthActive = true;
   dutyTimer = period;
 }
 
@@ -310,8 +318,12 @@ int16_t CH3::tick() {
 }
 
 void CH3::clockLength() {
-  length++;
-  if(!length) channelOn = false;
+  if(!lengthActive) return;
+  length--;
+  if(length == 0xff) {
+    channelOn = false;
+    lengthActive = false;
+  }
 }
 
 uint8_t CH4::readNRx2() {
@@ -331,8 +343,9 @@ uint8_t CH4::readNRx3() {
 }
 
 void CH4::writeNRx1(uint8_t data) {
-  initLength = data & 0x3f;
+  initLength = ~data & 0x3f;
   length = initLength;
+  lengthActive = true;
 }
 
 void CH4::writeNRx2(uint8_t data) {
@@ -355,6 +368,7 @@ void CH4::writeNRx4(uint8_t data) {
 
 void CH4::trigger() {
   channelOn = true;
+  lengthActive = true;
   volume = initVolume;
   clockTimer = 0x00000000;
   lfsr = 0x0000;
@@ -398,8 +412,12 @@ int16_t CH4::tick() {
 }
 
 void CH4::clockLength() {
-  length = (length + 1) & 0x3f;
-  if(!length) channelOn = false;
+  if(!lengthActive) return;
+  length = (length - 1) & 0x3f;
+  if(length == 0x3f) {
+    channelOn = false;
+    lengthActive = false;
+  }
 }
 
 void CH4::clockEnvelope() {

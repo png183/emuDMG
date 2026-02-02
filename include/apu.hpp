@@ -31,6 +31,7 @@ private:
   // internal state
   bool dacOn;
   bool channelOn;
+  bool lengthActive;
   uint16_t dutyTimer;
   uint8_t dutyStep;
   uint8_t envelopeStep;
@@ -76,6 +77,7 @@ private:
   // internal state
   bool dacOn;
   bool channelOn;
+  bool lengthActive;
   uint16_t dutyTimer;
   uint8_t index;
   uint8_t length;
@@ -109,6 +111,7 @@ private:
   // internal state
   bool dacOn;
   bool channelOn;
+  bool lengthActive;
   uint32_t clockTimer;
   uint8_t dutyStep;
   uint8_t envelopeStep;
