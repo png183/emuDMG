@@ -71,18 +71,6 @@ void APU::apuWriteIO(uint16_t addr, uint8_t data) {
 }
 
 void APU::apuTick() {
-  // clock length counters
-  uint8_t clockLengthPrev[4];
-  for(int i = 0; i < 4; i++) clockLengthPrev[i] = clockLength[i];
-  clockLength[0] = (ch1.lengthEnable && ch1.lengthActive && !(subdiv & 0x01));
-  clockLength[1] = (ch2.lengthEnable && ch2.lengthActive && !(subdiv & 0x01));
-  clockLength[2] = (ch3.lengthEnable && ch3.lengthActive && !(subdiv & 0x01));
-  clockLength[3] = (ch4.lengthEnable && ch4.lengthActive && !(subdiv & 0x01));
-  if(clockLength[0] && !clockLengthPrev[0]) ch1.clockLength();
-  if(clockLength[1] && !clockLengthPrev[1]) ch2.clockLength();
-  if(clockLength[2] && !clockLengthPrev[2]) ch3.clockLength();
-  if(clockLength[3] && !clockLengthPrev[3]) ch4.clockLength();
-
   // output sample
   int16_t sample = 0;
   if(nr52) {
@@ -102,6 +90,20 @@ void APU::divAPU() {
     ch4.clockEnvelope();
   }
   subdiv++;
+  ch1.subdiv++;
+  ch2.subdiv++;
+  ch3.subdiv++;
+  ch4.subdiv++;
+  ch1.updateClkLength();
+  ch2.updateClkLength();
+  ch3.updateClkLength();
+  ch4.updateClkLength();
+}
+
+void Length::updateClkLength() {
+  bool clkLengthPrev = clkLength;
+  clkLength = (lengthEnable && lengthActive && !(subdiv & 0x01));
+  if(clkLength && ! clkLengthPrev) clockLength();
 }
 
 uint8_t CH1::readNRx0() {
@@ -135,6 +137,7 @@ void CH1::writeNRx1(uint8_t data) {
   initLength = ~data & 0x3f;
   length = initLength;
   lengthActive = true;
+  updateClkLength();
 }
 
 void CH1::writeNRx2(uint8_t data) {
@@ -156,16 +159,18 @@ void CH1::writeNRx4(uint8_t data) {
   period &= 0x00ff;
   period |= (data & 0x07) << 8;
   if(!sweepPace) activePeriod = period;
-  if(dacOn && (data & 0x80)) trigger();
+  if((data & 0x80)) trigger();
 }
 
 void CH1::trigger() {
   channelOn = true;
   lengthActive = true;
+  updateClkLength();
   volume = initVolume;
   activePeriod = period;
   dutyTimer = activePeriod;
   if(sweepSize) calcFrequency();
+  if(!dacOn) channelOn = false;
 }
 
 void CH1::disable() {
@@ -220,6 +225,7 @@ void CH1::clockLength() {
   if(length == 0x3f) {
     channelOn = false;
     lengthActive = false;
+    updateClkLength();
   }
 }
 
@@ -261,6 +267,7 @@ void CH3::writeNRx1(uint8_t data) {
   initLength = ~data;
   length = initLength;
   lengthActive = true;
+  updateClkLength();
 }
 
 void CH3::writeNRx2(uint8_t data) {
@@ -276,7 +283,7 @@ void CH3::writeNRx4(uint8_t data) {
   Length::writeNRx4(data);
   period &= 0x00ff;
   period |= (data & 0x07) << 8;
-  if(dacOn && (data & 0x80)) trigger();
+  if((data & 0x80)) trigger();
 }
 
 uint8_t CH3::readRAM(uint16_t addr) {
@@ -290,7 +297,9 @@ void CH3::writeRAM(uint16_t addr, uint8_t data) {
 void CH3::trigger() {
   channelOn = true;
   lengthActive = true;
+  updateClkLength();
   dutyTimer = period;
+  if(!dacOn) channelOn = false;
 }
 
 void CH3::disable() {
@@ -327,6 +336,7 @@ void CH3::clockLength() {
   if(length == 0xff) {
     channelOn = false;
     lengthActive = false;
+    updateClkLength();
   }
 }
 
@@ -350,6 +360,7 @@ void CH4::writeNRx1(uint8_t data) {
   initLength = ~data & 0x3f;
   length = initLength;
   lengthActive = true;
+  updateClkLength();
 }
 
 void CH4::writeNRx2(uint8_t data) {
@@ -368,15 +379,17 @@ void CH4::writeNRx3(uint8_t data) {
 
 void CH4::writeNRx4(uint8_t data) {
   Length::writeNRx4(data);
-  if(dacOn && (data & 0x80)) trigger();
+  if((data & 0x80)) trigger();
 }
 
 void CH4::trigger() {
   channelOn = true;
   lengthActive = true;
+  updateClkLength();
   volume = initVolume;
   clockTimer = 0x00000000;
   lfsr = 0x0000;
+  if(!dacOn) channelOn = false;
 }
 
 void CH4::disable() {
@@ -423,6 +436,7 @@ void CH4::clockLength() {
   if(length == 0x3f) {
     channelOn = false;
     lengthActive = false;
+    updateClkLength();
   }
 }
 

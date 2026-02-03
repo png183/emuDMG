@@ -3,10 +3,18 @@
 class Length {
 public:
   uint8_t readNRx4() { return (lengthEnable ? 0xff: 0xbf); }
-  void writeNRx4(uint8_t data) { lengthEnable = data & 0x40; }
+  void writeNRx4(uint8_t data) { lengthEnable = data & 0x40; updateClkLength(); }
   void disable() { lengthEnable = false; }
+  void updateClkLength();
+  virtual void clockLength() { return; }
 
+  // registers
   bool lengthEnable;
+
+  // internal state
+  bool clkLength;
+  bool lengthActive;
+  uint8_t subdiv;
 };
 
 class CH1 : public Length {
@@ -24,11 +32,11 @@ public:
   bool active();
   int16_t tick();
   void calcFrequency();
-  void clockLength();
+  void clockLength() override;
   void clockSweep();
   void clockEnvelope();
 
-//private:
+private:
   // registers
   uint8_t dutyCycle;
   uint8_t initLength;
@@ -40,7 +48,6 @@ public:
   // internal state
   bool dacOn;
   bool channelOn;
-  bool lengthActive;
   uint16_t dutyTimer;
   uint8_t dutyStep;
   uint8_t envelopeStep;
@@ -72,9 +79,9 @@ public:
   void disable();
   bool active();
   int16_t tick();
-  void clockLength();
+  void clockLength() override;
 
-//private:
+private:
   // wave RAM
   uint8_t ram[0x10];
 
@@ -86,7 +93,6 @@ public:
   // internal state
   bool dacOn;
   bool channelOn;
-  bool lengthActive;
   uint16_t dutyTimer;
   uint8_t index;
   uint8_t length;
@@ -104,10 +110,10 @@ public:
   void disable();
   bool active();
   int16_t tick();
-  void clockLength();
+  void clockLength() override;
   void clockEnvelope();
 
-//private:
+private:
   // registers
   uint8_t initLength;
   uint8_t initVolume;
@@ -120,7 +126,6 @@ public:
   // internal state
   bool dacOn;
   bool channelOn;
-  bool lengthActive;
   uint32_t clockTimer;
   uint8_t dutyStep;
   uint8_t envelopeStep;
