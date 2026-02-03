@@ -65,7 +65,7 @@ public:
     case 0x1d: hasRam = true; cart = new MBC5(); break;  // todo: has rumble
     case 0x1e: hasRam = true; cart = new MBC5(); break;  // todo: has battery and rumble
     default:
-      printf("Unsupported mapper 0x%02x\n", mapper);
+      printf("ERROR: Unsupported mapper (0x%02x)\n", mapper);
       exit(0);
       break;
     }
@@ -75,18 +75,18 @@ public:
     uint8_t* cartRam = NULL;
     uint32_t cartRamMask = 0x00000;
     if(hasRam) {
-      cartRam = new uint8_t[0x20000];  // maximum RAM size (128KiB)
       switch(cartRom[0x0149]) {
       case 0x02: cartRamMask = 0x01fff; break;
       case 0x03: cartRamMask = 0x07fff; break;
       case 0x04: cartRamMask = 0x1ffff; break;
       case 0x05: cartRamMask = 0x0ffff; break;
       default:
-        printf("ERROR: Cartridge header specifies RAM without quantity\n");
-        exit(0);
+        printf("Warning: Cartridge header specifies RAM without quantity (0x%02x)\n");
+        hasRam = false;
         break;
       }
     }
+    if(hasRam) cartRam = new uint8_t[0x20000];  // maximum RAM size (128KiB)
 
     // load save file, if present
     // todo: only load save data if cart has battery
