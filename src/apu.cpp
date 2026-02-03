@@ -201,6 +201,8 @@ void CH1::trigger() {
   volume = initVolume;
   activePeriod = period;
   dutyTimer = activePeriod;
+  sweepStep = 0x00;
+  sweepActive = (sweepPace || sweepSize);
   if(sweepSize) calcFrequency();
   if(!dacOn) channelOn = false;
 }
@@ -245,16 +247,18 @@ int16_t CH1::tick() {
 }
 
 void CH1::calcFrequency() {
-  sweepStep = 0x00;
   uint16_t adjustment = activePeriod >> sweepSize;
   activePeriod = sweepDirection ? (activePeriod - adjustment) : (activePeriod + adjustment);
   if(activePeriod >= 0x0800) channelOn = false;
 }
 
 void CH1::clockSweep() {
-  if(channelOn && sweepPace) {
+  if(channelOn && sweepPace && sweepActive) {
     sweepStep = (sweepStep + 1) & 0x07;
-    if(sweepStep == sweepPace) calcFrequency();
+    if(sweepStep == sweepPace) {
+      sweepStep = 0x00;
+      calcFrequency();
+    }
   }
 }
 

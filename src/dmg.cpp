@@ -119,9 +119,6 @@ void DMG::cycle() {
   apuTick();
   joypadTick();
 
-  // run DIV-APU event, if applicable
-  if(!(div & 0x07ff)) divAPU();
-
   // clock serial port, if active
   if(!(div & 0x007f)) {
     if(serialBits && sc == 0x81) {
@@ -152,7 +149,11 @@ void DMG::cycle() {
   dmaPending[1] = false;
 
   // run 1 M-cycle
+  uint16_t prevDiv = div;
   div++;
+
+  // run DIV-APU event, if applicable
+  if((prevDiv & 0x0400) && !(div & 0x0400)) divAPU();
 
   // find new state of timer clocking signal
   bool clkTimerNew = false;

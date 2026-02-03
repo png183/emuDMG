@@ -68,6 +68,7 @@ private:
 
   // CH1 period sweep internal state
   uint8_t sweepStep;
+  bool sweepActive;
 };
 
 class CH3 : public Length {
