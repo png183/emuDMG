@@ -1,6 +1,15 @@
 #include <cstdint>
 
-class CH1 {
+class Length {
+public:
+  uint8_t readNRx4() { return (lengthEnable ? 0xff: 0xbf); }
+  void writeNRx4(uint8_t data) { lengthEnable = data & 0x40; }
+  void disable() { lengthEnable = false; }
+
+  bool lengthEnable;
+};
+
+class CH1 : public Length {
 public:
   uint8_t readNRx0();
   uint8_t readNRx1();
@@ -19,7 +28,7 @@ public:
   void clockSweep();
   void clockEnvelope();
 
-private:
+//private:
   // registers
   uint8_t dutyCycle;
   uint8_t initLength;
@@ -48,7 +57,7 @@ private:
   uint8_t sweepStep;
 };
 
-class CH3 {
+class CH3 : public Length {
 public:
   uint8_t readNRx0();
   uint8_t readNRx2();
@@ -65,7 +74,7 @@ public:
   int16_t tick();
   void clockLength();
 
-private:
+//private:
   // wave RAM
   uint8_t ram[0x10];
 
@@ -83,7 +92,7 @@ private:
   uint8_t length;
 };
 
-class CH4 {
+class CH4 : public Length {
 public:
   uint8_t readNRx2();
   uint8_t readNRx3();
@@ -98,7 +107,7 @@ public:
   void clockLength();
   void clockEnvelope();
 
-private:
+//private:
   // registers
   uint8_t initLength;
   uint8_t initVolume;
@@ -147,7 +156,6 @@ private:
   CH4 ch4;
 
   // APU registers
-  uint8_t lengthEnable[4];  // NRx4, bit 6
   uint8_t nr50;  // todo: implement panning
   uint8_t nr51;  // todo: implement panning
   bool nr52;
