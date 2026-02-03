@@ -83,27 +83,63 @@ void APU::apuTick() {
 }
 
 void APU::divAPU() {
+  subdiv++;
+  ch1.divAPU();
+  ch2.divAPU();
+  ch3.divAPU();
+  ch4.divAPU();
   if(!(subdiv & 0x03)) ch1.clockSweep();
   if(!(subdiv & 0x07)) {
     ch1.clockEnvelope();
     ch2.clockEnvelope();
     ch4.clockEnvelope();
   }
+}
+
+uint8_t Length::readNRx4() {
+  return (lengthEnable ? 0xff: 0xbf);
+}
+
+void Length::writeNRx1(uint8_t data) {
+  initLength = ~data & LEN_MASK();
+  length = initLength;
+  lengthActive = true;
+  updateClkLength();
+}
+
+void Length::writeNRx4(uint8_t data) {
+  lengthEnable = data & 0x40;
+  updateClkLength();
+}
+
+void Length::divAPU() {
   subdiv++;
-  ch1.subdiv++;
-  ch2.subdiv++;
-  ch3.subdiv++;
-  ch4.subdiv++;
-  ch1.updateClkLength();
-  ch2.updateClkLength();
-  ch3.updateClkLength();
-  ch4.updateClkLength();
+  updateClkLength();
+}
+
+void Length::trigger() {
+  lengthActive = true;
+  updateClkLength();
+}
+
+void Length::disable() {
+  lengthEnable = false;
 }
 
 void Length::updateClkLength() {
   bool clkLengthPrev = clkLength;
   clkLength = (lengthEnable && lengthActive && !(subdiv & 0x01));
   if(clkLength && ! clkLengthPrev) clockLength();
+}
+
+void Length::clockLength() {
+  if(!lengthActive) return;
+  length = (length - 1) & LEN_MASK();
+  if(length == LEN_MASK()) {
+    channelOn = false;
+    lengthActive = false;
+    updateClkLength();
+  }
 }
 
 uint8_t CH1::readNRx0() {
@@ -133,11 +169,8 @@ void CH1::writeNRx0(uint8_t data) {
 }
 
 void CH1::writeNRx1(uint8_t data) {
+  Length::writeNRx1(data);
   dutyCycle = data >> 6;
-  initLength = ~data & 0x3f;
-  length = initLength;
-  lengthActive = true;
-  updateClkLength();
 }
 
 void CH1::writeNRx2(uint8_t data) {
@@ -164,8 +197,7 @@ void CH1::writeNRx4(uint8_t data) {
 
 void CH1::trigger() {
   channelOn = true;
-  lengthActive = true;
-  updateClkLength();
+  Length::trigger();
   volume = initVolume;
   activePeriod = period;
   dutyTimer = activePeriod;
@@ -219,16 +251,6 @@ void CH1::calcFrequency() {
   if(activePeriod >= 0x0800) channelOn = false;
 }
 
-void CH1::clockLength() {
-  if(!lengthActive) return;
-  length = (length - 1) & 0x3f;
-  if(length == 0x3f) {
-    channelOn = false;
-    lengthActive = false;
-    updateClkLength();
-  }
-}
-
 void CH1::clockSweep() {
   if(channelOn && sweepPace) {
     sweepStep = (sweepStep + 1) & 0x07;
@@ -263,13 +285,6 @@ void CH3::writeNRx0(uint8_t data) {
   if(!dacOn) channelOn = false;
 }
 
-void CH3::writeNRx1(uint8_t data) {
-  initLength = ~data;
-  length = initLength;
-  lengthActive = true;
-  updateClkLength();
-}
-
 void CH3::writeNRx2(uint8_t data) {
   volume = (data >> 5) & 0x03;
 }
@@ -296,8 +311,7 @@ void CH3::writeRAM(uint16_t addr, uint8_t data) {
 
 void CH3::trigger() {
   channelOn = true;
-  lengthActive = true;
-  updateClkLength();
+  Length::trigger();
   dutyTimer = period;
   if(!dacOn) channelOn = false;
 }
@@ -330,16 +344,6 @@ int16_t CH3::tick() {
   return sample;
 }
 
-void CH3::clockLength() {
-  if(!lengthActive) return;
-  length--;
-  if(length == 0xff) {
-    channelOn = false;
-    lengthActive = false;
-    updateClkLength();
-  }
-}
-
 uint8_t CH4::readNRx2() {
   uint8_t data = 0x00;
   data |= initVolume << 4;
@@ -354,13 +358,6 @@ uint8_t CH4::readNRx3() {
   if(lfsrWidth) data |= 0x08;
   data |= clockDivider;
   return data;
-}
-
-void CH4::writeNRx1(uint8_t data) {
-  initLength = ~data & 0x3f;
-  length = initLength;
-  lengthActive = true;
-  updateClkLength();
 }
 
 void CH4::writeNRx2(uint8_t data) {
@@ -384,8 +381,7 @@ void CH4::writeNRx4(uint8_t data) {
 
 void CH4::trigger() {
   channelOn = true;
-  lengthActive = true;
-  updateClkLength();
+  Length::trigger();
   volume = initVolume;
   clockTimer = 0x00000000;
   lfsr = 0x0000;
@@ -428,16 +424,6 @@ int16_t CH4::tick() {
     sample = ((data << 1) - 0x0f) * 0x0080;
   }
   return sample;
-}
-
-void CH4::clockLength() {
-  if(!lengthActive) return;
-  length = (length - 1) & 0x3f;
-  if(length == 0x3f) {
-    channelOn = false;
-    lengthActive = false;
-    updateClkLength();
-  }
 }
 
 void CH4::clockEnvelope() {

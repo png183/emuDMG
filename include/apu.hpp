@@ -2,18 +2,28 @@
 
 class Length {
 public:
-  uint8_t readNRx4() { return (lengthEnable ? 0xff: 0xbf); }
-  void writeNRx4(uint8_t data) { lengthEnable = data & 0x40; updateClkLength(); }
-  void disable() { lengthEnable = false; }
+  uint8_t readNRx4();
+  void writeNRx1(uint8_t data);
+  void writeNRx4(uint8_t data);
+  void divAPU();
+  void trigger();
+  void disable();
   void updateClkLength();
-  virtual void clockLength() { return; }
+  void clockLength();
+  virtual constexpr uint8_t LEN_MASK() { return 0x3f; }
 
+  // state used by other portions of audio channel
+  bool channelOn;
+
+private:
   // registers
+  uint8_t initLength;
   bool lengthEnable;
 
   // internal state
   bool clkLength;
   bool lengthActive;
+  uint8_t length;
   uint8_t subdiv;
 };
 
@@ -32,14 +42,12 @@ public:
   bool active();
   int16_t tick();
   void calcFrequency();
-  void clockLength() override;
   void clockSweep();
   void clockEnvelope();
 
 private:
   // registers
   uint8_t dutyCycle;
-  uint8_t initLength;
   uint8_t initVolume;
   bool crescendo;
   uint8_t envelopePace;
@@ -47,11 +55,9 @@ private:
 
   // internal state
   bool dacOn;
-  bool channelOn;
   uint16_t dutyTimer;
   uint8_t dutyStep;
   uint8_t envelopeStep;
-  uint8_t length;
   uint8_t volume;
   uint16_t activePeriod;
 
@@ -69,7 +75,6 @@ public:
   uint8_t readNRx0();
   uint8_t readNRx2();
   void writeNRx0(uint8_t data);
-  void writeNRx1(uint8_t data);
   void writeNRx2(uint8_t data);
   void writeNRx3(uint8_t data);
   void writeNRx4(uint8_t data);
@@ -79,30 +84,26 @@ public:
   void disable();
   bool active();
   int16_t tick();
-  void clockLength() override;
+  constexpr uint8_t LEN_MASK() override { return 0xff; }
 
 private:
   // wave RAM
   uint8_t ram[0x10];
 
   // registers
-  uint8_t initLength;
   uint8_t volume;
   uint16_t period;
 
   // internal state
   bool dacOn;
-  bool channelOn;
   uint16_t dutyTimer;
   uint8_t index;
-  uint8_t length;
 };
 
 class CH4 : public Length {
 public:
   uint8_t readNRx2();
   uint8_t readNRx3();
-  void writeNRx1(uint8_t data);
   void writeNRx2(uint8_t data);
   void writeNRx3(uint8_t data);
   void writeNRx4(uint8_t data);
@@ -110,12 +111,10 @@ public:
   void disable();
   bool active();
   int16_t tick();
-  void clockLength() override;
   void clockEnvelope();
 
 private:
   // registers
-  uint8_t initLength;
   uint8_t initVolume;
   bool crescendo;
   uint8_t envelopePace;
@@ -125,11 +124,9 @@ private:
 
   // internal state
   bool dacOn;
-  bool channelOn;
   uint32_t clockTimer;
   uint8_t dutyStep;
   uint8_t envelopeStep;
-  uint8_t length;
   uint8_t volume;
   uint16_t lfsr;
 };
@@ -145,6 +142,9 @@ public:
 
     // reset NR52
     nr52 = false;
+
+    // reset internal state
+    subdiv = 0x00;
   }
 
   virtual void emitSample(int16_t volume) { return; }
@@ -167,6 +167,5 @@ private:
 
   // APU internal state
   uint8_t subdiv;
-  bool clockLength[4];
 };
 
