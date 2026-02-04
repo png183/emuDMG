@@ -39,7 +39,12 @@ public:
 private:
   uint8_t STAT();
   void scanline(uint8_t y);
+  uint8_t bgReadTilemap(uint8_t x, uint8_t y);
+  uint8_t bgGetTileData(uint8_t tile, uint8_t y, uint8_t bitLoHi);
+  uint8_t winReadTilemap(uint8_t x, uint8_t y);
+  uint8_t winGetTileData(uint8_t tile, uint8_t y, uint8_t bitLoHi);
   void renderBackground(uint8_t y);
+  void renderWindow(uint8_t y);
   void renderSprites(uint8_t y);
 
   // PPU registers

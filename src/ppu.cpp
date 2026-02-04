@@ -1,36 +1,42 @@
 #include "ppu.hpp"
 
 uint8_t PPU::ppuReadIO(uint16_t addr) {
-  if(addr == 0xff40) return lcdc;  // LCDC
-  if(addr == 0xff41) return STAT();  // STAT
-  if(addr == 0xff42) return scy;  // SCY
-  if(addr == 0xff43) return scx;  // SCX
-  if(addr == 0xff44) return ly;  // LY
-  if(addr == 0xff45) return lyc;  // LYC
-  if(addr == 0xff47) return bgp;  // BGP
-  if(addr == 0xff48) return obp0;  // OBP0
-  if(addr == 0xff49) return obp1;  // OBP1
-  if(addr == 0xff4a) return wy;  // WY
-  if(addr == 0xff4b) return wx;  // WX
+  switch(addr) {
+  case 0xff40: return lcdc;  // LCDC
+  case 0xff41: return STAT();  // STAT
+  case 0xff42: return scy;  // SCY
+  case 0xff43: return scx;  // SCX
+  case 0xff44: return ly;  // LY
+  case 0xff45: return lyc;  // LYC
+  case 0xff47: return bgp;  // BGP
+  case 0xff48: return obp0;  // OBP0
+  case 0xff49: return obp1;  // OBP1
+  case 0xff4a: return wy;  // WY
+  case 0xff4b: return wx;  // WX
+  }
   return 0xff;
 }
 
 void PPU::ppuWriteIO(uint16_t addr, uint8_t data) {
-  if(addr == 0xff40) { lcdc = data; return; }  // LCDC
-  if(addr == 0xff41) { stat = data & 0x78; return; }  // STAT
-  if(addr == 0xff42) { scy = data; return; }  // SCY
-  if(addr == 0xff43) { scx = data; return; }  // SCX
-  if(addr == 0xff45) { lyc = data; return; }  // LYC
-  if(addr == 0xff47) { bgp = data; return; }  // BGP
-  if(addr == 0xff48) { obp0 = data; return; }  // OBP0
-  if(addr == 0xff49) { obp1 = data; return; }  // OBP1
-  if(addr == 0xff4a) { wy = data; return; }  // WY
-  if(addr == 0xff4b) { wx = data; return; }  // WX
+  switch(addr) {
+  case 0xff40: lcdc = data; return;  // LCDC
+  case 0xff41: stat = data & 0x78; return;  // STAT
+  case 0xff42: scy = data; return;  // SCY
+  case 0xff43: scx = data; return;  // SCX
+  case 0xff45: lyc = data; return;  // LYC
+  case 0xff47: bgp = data; return;  // BGP
+  case 0xff48: obp0 = data; return;  // OBP0
+  case 0xff49: obp1 = data; return;  // OBP1
+  case 0xff4a: wy = data; return;  // WY
+  case 0xff4b: wx = data; return;  // WX
+  }
 }
 
 void PPU::ppuTick() {
-  // run PPU
-  scanCycle += 4;
+  if(!(lcdc & 0x80)) return;
+
+  // run PPU if LCD is enabled
+  scanCycle++;
   if(scanCycle == 80) {
     scanline(ly);
   } else if(scanCycle == 456) {
@@ -71,17 +77,12 @@ uint8_t PPU::STAT() {
 void PPU::scanline(uint8_t y) {
   if(y >= 144) return;
 
-  // draw blank scanline if LCD is disabled
-  if(!(lcdc & 0x80)) {
-    for(uint8_t x = 0; x < 160; x++) plotPixel(x, y, 0x00);
-    return;
-  }
-
   // clear sprite buffer (other scanline buffers will be sufficiently overwritten)
   for(uint8_t x = 0; x < 160; x++) objBuffer[x] = 0x00;
 
   // render background
   if(lcdc & 0x01) renderBackground(y);
+  if(lcdc & 0x01) renderWindow(y);
 
   // render sprites
   if(lcdc & 0x02) renderSprites(y);
@@ -98,50 +99,60 @@ void PPU::scanline(uint8_t y) {
   }
 }
 
+uint8_t PPU::bgReadTilemap(uint8_t x, uint8_t y) {
+  uint8_t tileY = (uint8_t)(y + scy) >> 3;
+  uint8_t tileX = (uint8_t)(x + scx) >> 3;
+  uint16_t baseAddr = (lcdc & 0x08) ? 0x1c00 : 0x1800;
+  return vram[baseAddr | tileY << 5 | tileX];
+}
+
+uint8_t PPU::bgGetTileData(uint8_t tile, uint8_t y, uint8_t bitLoHi) {
+  uint8_t fineY = (y + scy) & 0x07;
+  uint16_t baseAddr = (!(lcdc & 0x10) && !(tile & 0x80)) ? 0x1000 : 0x0000;
+  return vram[baseAddr | tile << 4 | fineY << 1 | bitLoHi];
+}
+
+uint8_t PPU::winReadTilemap(uint8_t x, uint8_t y) {
+  uint8_t tileY = yWinCount >> 3;
+  uint8_t tileX = (uint8_t)(x + 7 - wx) >> 3;
+  uint16_t baseAddr = (lcdc & 0x40) ? 0x1c00 : 0x1800;
+  return vram[baseAddr | tileY << 5 | tileX];
+}
+
+uint8_t PPU::winGetTileData(uint8_t tile, uint8_t y, uint8_t bitLoHi) {
+  uint8_t fineY = yWinCount & 0x07;
+  uint16_t baseAddr = (!(lcdc & 0x10) && !(tile & 0x80)) ? 0x1000 : 0x0000;
+  return vram[baseAddr | tile << 4 | fineY << 1 | bitLoHi];
+}
+
 void PPU::renderBackground(uint8_t y) {
   for(uint8_t x = 0; x < 160; x++) {
-    // determine rendering Y-position
-    uint8_t dataY = y + scy;
-    uint8_t tileY = dataY >> 3;
-    uint8_t fineY = dataY & 0x07;
-
-    // determine rendering X-position
-    uint8_t dataX = x + scx;
-    uint8_t tileX = dataX >> 3;
-    uint8_t fineX = dataX & 0x07;
+    // determine sub-tile X-position
+    uint8_t fineX = (x + scx) & 0x07;
 
     // render pixel
-    uint8_t tile = vram[((lcdc & 0x08) ? 0x1c00 : 0x1800) | tileY << 5 | tileX];
-    uint16_t tileAddr = tile << 4 | fineY << 1;
-    if(!(lcdc & 0x10) && !(tile & 0x80)) tileAddr += 0x1000;
-    uint8_t tileDataLo = vram[tileAddr | 0];
-    uint8_t tileDataHi = vram[tileAddr | 1];
+    uint8_t tile = bgReadTilemap(x, y);
+    uint8_t tileDataLo = bgGetTileData(tile, y, 0);
+    uint8_t tileDataHi = bgGetTileData(tile, y, 1);
     uint8_t pxLo = (tileDataLo >> (fineX ^ 0x07)) & 1;
     uint8_t pxHi = (tileDataHi >> (fineX ^ 0x07)) & 1;
     bgBuffer[x] = pxHi << 1 | pxLo;
   }
+}
 
-  // render window
+void PPU::renderWindow(uint8_t y) {
   if(!(lcdc & 0x20)) return;
   if(y < wy) return;
   for(uint8_t x = 0; x < 160; x++) {
     if((x + 7) < wx) continue;
 
-    // determine rendering Y-position
-    uint8_t tileY = yWinCount >> 3;
-    uint8_t fineY = yWinCount & 0x07;
-
-    // determine rendering X-position
-    uint8_t dataX = x + 7 - wx;
-    uint8_t tileX = dataX >> 3;
-    uint8_t fineX = dataX & 0x07;
+    // determine sub-tile X-position
+    uint8_t fineX = (x + 7 - wx) & 0x07;
 
     // render pixel
-    uint8_t tile = vram[((lcdc & 0x40) ? 0x1c00 : 0x1800) | tileY << 5 | tileX];
-    uint16_t tileAddr = tile << 4 | fineY << 1;
-    if(!(lcdc & 0x10) && !(tile & 0x80)) tileAddr += 0x1000;
-    uint8_t tileDataLo = vram[tileAddr | 0];
-    uint8_t tileDataHi = vram[tileAddr | 1];
+    uint8_t tile = winReadTilemap(x, y);
+    uint8_t tileDataLo = winGetTileData(tile, y, 0);
+    uint8_t tileDataHi = winGetTileData(tile, y, 1);
     uint8_t pxLo = (tileDataLo >> (fineX ^ 0x07)) & 1;
     uint8_t pxHi = (tileDataHi >> (fineX ^ 0x07)) & 1;
     bgBuffer[x] = pxHi << 1 | pxLo;
