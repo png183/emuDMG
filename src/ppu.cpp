@@ -33,13 +33,31 @@ void PPU::ppuWriteIO(uint16_t addr, uint8_t data) {
 }
 
 void PPU::ppuTick() {
-  if(!(lcdc & 0x80)) return;
-
   // run PPU if LCD is enabled
+  if(!(lcdc & 0x80)) return;
   scanCycle++;
-  if(scanCycle == 80) {
-    scanline(ly);
-  } else if(scanCycle == 456) {
+
+  if(ly < 144 && scanCycle == 80) {
+    // render scanline
+    if(lcdc & 0x01) renderBackground(ly);
+    if(lcdc & 0x01) renderWindow(ly);
+    if(lcdc & 0x02) renderSprites(ly);
+  }
+
+  if(ly < 144 && scanCycle >= 80 && scanCycle < 240) {
+    // output pixel
+    uint8_t x = scanCycle - 80;
+    uint8_t bgPalette = bgBuffer[x];
+    uint8_t objPalette = objBuffer[x];
+    uint8_t attributes = attrBuffer[x];
+    uint8_t bgColour = (bgp >> (bgPalette << 1)) & 0x03;
+    uint8_t objColour = (((attributes & 0x10) ? obp1 : obp0) >> (objPalette  << 1)) & 0x03;
+    uint8_t colour = (objPalette && (!bgPalette || !(attributes & 0x80))) ? objColour : bgColour;
+    plotPixel(x, ly, colour);
+  }
+
+  if(scanCycle == 456) {
+    for(uint8_t x = 0; x < 160; x++) objBuffer[x] = 0x00;  // clear sprite buffer
     scanCycle = 0;
     ly++;
     if(ly == 154) {
@@ -72,31 +90,6 @@ uint8_t PPU::STAT() {
     data |= 0x03;
   }
   return data;
-}
-
-void PPU::scanline(uint8_t y) {
-  if(y >= 144) return;
-
-  // clear sprite buffer (other scanline buffers will be sufficiently overwritten)
-  for(uint8_t x = 0; x < 160; x++) objBuffer[x] = 0x00;
-
-  // render background
-  if(lcdc & 0x01) renderBackground(y);
-  if(lcdc & 0x01) renderWindow(y);
-
-  // render sprites
-  if(lcdc & 0x02) renderSprites(y);
-
-  // output scanline
-  for(int x = 0; x < 160; x++) {
-    uint8_t bgPalette = bgBuffer[x];
-    uint8_t objPalette = objBuffer[x];
-    uint8_t attributes = attrBuffer[x];
-    uint8_t bgColour = (bgp >> (bgPalette << 1)) & 0x03;
-    uint8_t objColour = (((attributes & 0x10) ? obp1 : obp0) >> (objPalette  << 1)) & 0x03;
-    uint8_t colour = (objPalette && (!bgPalette || !(attributes & 0x80))) ? objColour : bgColour;
-    plotPixel(x, y, colour);
-  }
 }
 
 uint8_t PPU::bgReadTilemap(uint8_t x, uint8_t y) {
