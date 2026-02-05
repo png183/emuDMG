@@ -16,6 +16,7 @@ public:
     wx = 0x00;
     scanCycle = 0;
     irqSTAT = false;
+    bgStep = 0;
   }
 
   ~PPU() {
@@ -40,9 +41,7 @@ private:
   uint8_t STAT();
   uint8_t bgReadTilemap(uint8_t x, uint8_t y);
   uint8_t bgGetTileData(uint8_t tile, uint8_t y, uint8_t bitLoHi);
-  uint8_t winReadTilemap(uint8_t x, uint8_t y);
-  uint8_t winGetTileData(uint8_t tile, uint8_t y, uint8_t bitLoHi);
-  void renderBackground(uint8_t y);
+  void bgTickFIFO();
   void renderWindow(uint8_t y);
   void renderSprites(uint8_t y);
 
@@ -59,13 +58,24 @@ private:
   uint8_t wy;
   uint8_t wx;
 
+  // BG FIFO
+  uint8_t bgTile;
+  uint8_t bgDataLo;
+  uint8_t bgDataHi;
+  uint8_t bgFifoLo;
+  uint8_t bgFifoHi;
+  uint8_t bgFifoSize;
+  uint8_t bgStep;
+  bool bgIsWin;
+
   // PPU internal state
   int scanCycle;
   uint8_t yWinCount;
   bool irqSTAT;
+  uint8_t lx;
+  int xOut;
 
   // Scanline renderer state
-  uint8_t bgBuffer[160];
   uint8_t objBuffer[160];
   uint8_t attrBuffer[160];
 };

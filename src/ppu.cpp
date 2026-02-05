@@ -38,28 +38,55 @@ void PPU::ppuTick() {
   scanCycle++;
 
   if(ly < 144 && scanCycle == 80) {
-    // render scanline
-    if(lcdc & 0x01) renderBackground(ly);
-    if(lcdc & 0x01) renderWindow(ly);
+    // reset BG FIFO
+    xOut = 0 - (scx & 0x07);
+    lx = 0;
+    bgFifoSize = 0;
+    bgStep = 0;
+    bgIsWin = false;
+
+    // run sprite scanline renderer
     if(lcdc & 0x02) renderSprites(ly);
   }
 
-  if(ly < 144 && scanCycle >= 80 && scanCycle < 240) {
-    // output pixel
-    uint8_t x = scanCycle - 80;
-    uint8_t bgPalette = bgBuffer[x];
-    uint8_t objPalette = objBuffer[x];
-    uint8_t attributes = attrBuffer[x];
-    uint8_t bgColour = (bgp >> (bgPalette << 1)) & 0x03;
-    uint8_t objColour = (((attributes & 0x10) ? obp1 : obp0) >> (objPalette  << 1)) & 0x03;
-    uint8_t colour = (objPalette && (!bgPalette || !(attributes & 0x80))) ? objColour : bgColour;
-    plotPixel(x, ly, colour);
+  if(ly < 144 && scanCycle >= 80) {
+    // start window, if reached
+    // todo: this should actually occur after shifting out 1 pixel
+    if(!bgIsWin && (lcdc & 0x20) && ly >= wy && (xOut + 7) >= wx) {
+      lx = 0;
+      bgFifoSize = 0;
+      bgStep = 0;
+      bgIsWin = true;
+    }
+
+    // generate pixels
+    bgTickFIFO();
+
+    //output pixels if ready
+    if(bgFifoSize && xOut < 160) {
+      uint8_t bgPalette = (bgFifoHi >> 7) << 1 | (bgFifoLo >> 7);
+      bgFifoHi <<= 1;
+      bgFifoLo <<= 1;
+      bgFifoSize--;
+
+      // output pixel if onscreen
+      if(xOut >= 0) {
+        uint8_t objPalette = objBuffer[xOut];
+        uint8_t attributes = attrBuffer[xOut];
+        uint8_t bgColour = (bgp >> (bgPalette << 1)) & 0x03;
+        uint8_t objColour = (((attributes & 0x10) ? obp1 : obp0) >> (objPalette  << 1)) & 0x03;
+        uint8_t colour = (objPalette && (!bgPalette || !(attributes & 0x80))) ? objColour : bgColour;
+        plotPixel(xOut, ly, colour);
+      }
+      xOut++;
+    }
   }
 
   if(scanCycle == 456) {
     for(uint8_t x = 0; x < 160; x++) objBuffer[x] = 0x00;  // clear sprite buffer
     scanCycle = 0;
     ly++;
+    if(bgIsWin) yWinCount++;
     if(ly == 154) {
       ly = 0;
       yWinCount = 0;
@@ -93,64 +120,45 @@ uint8_t PPU::STAT() {
 }
 
 uint8_t PPU::bgReadTilemap(uint8_t x, uint8_t y) {
-  uint8_t tileY = (uint8_t)(y + scy) >> 3;
-  uint8_t tileX = (uint8_t)(x + scx) >> 3;
-  uint16_t baseAddr = (lcdc & 0x08) ? 0x1c00 : 0x1800;
+  uint8_t tileY = bgIsWin ? (yWinCount >> 3) : ((uint8_t)(y + scy) >> 3);
+  uint8_t tileX = bgIsWin ? (x >> 3) : ((uint8_t)(x + scx) >> 3);
+  uint16_t baseAddr = (bgIsWin ? (lcdc & 0x40) : (lcdc & 0x08)) ? 0x1c00 : 0x1800;
   return vram[baseAddr | tileY << 5 | tileX];
 }
 
 uint8_t PPU::bgGetTileData(uint8_t tile, uint8_t y, uint8_t bitLoHi) {
-  uint8_t fineY = (y + scy) & 0x07;
+  uint8_t fineY = bgIsWin ? (yWinCount & 0x07) : (y + scy) & 0x07;
   uint16_t baseAddr = (!(lcdc & 0x10) && !(tile & 0x80)) ? 0x1000 : 0x0000;
   return vram[baseAddr | tile << 4 | fineY << 1 | bitLoHi];
 }
 
-uint8_t PPU::winReadTilemap(uint8_t x, uint8_t y) {
-  uint8_t tileY = yWinCount >> 3;
-  uint8_t tileX = (uint8_t)(x + 7 - wx) >> 3;
-  uint16_t baseAddr = (lcdc & 0x40) ? 0x1c00 : 0x1800;
-  return vram[baseAddr | tileY << 5 | tileX];
-}
-
-uint8_t PPU::winGetTileData(uint8_t tile, uint8_t y, uint8_t bitLoHi) {
-  uint8_t fineY = yWinCount & 0x07;
-  uint16_t baseAddr = (!(lcdc & 0x10) && !(tile & 0x80)) ? 0x1000 : 0x0000;
-  return vram[baseAddr | tile << 4 | fineY << 1 | bitLoHi];
-}
-
-void PPU::renderBackground(uint8_t y) {
-  for(uint8_t x = 0; x < 160; x++) {
-    // determine sub-tile X-position
-    uint8_t fineX = (x + scx) & 0x07;
-
-    // render pixel
-    uint8_t tile = bgReadTilemap(x, y);
-    uint8_t tileDataLo = bgGetTileData(tile, y, 0);
-    uint8_t tileDataHi = bgGetTileData(tile, y, 1);
-    uint8_t pxLo = (tileDataLo >> (fineX ^ 0x07)) & 1;
-    uint8_t pxHi = (tileDataHi >> (fineX ^ 0x07)) & 1;
-    bgBuffer[x] = pxHi << 1 | pxLo;
+void PPU::bgTickFIFO() {
+  if(!(lcdc & 0x01)) {
+    // emit blank pixels if background is disabled
+    bgFifoSize = 8;
+    bgFifoLo = 0x00;
+    bgFifoHi = 0x00;
+    return;
   }
-}
 
-void PPU::renderWindow(uint8_t y) {
-  if(!(lcdc & 0x20)) return;
-  if(y < wy) return;
-  for(uint8_t x = 0; x < 160; x++) {
-    if((x + 7) < wx) continue;
-
-    // determine sub-tile X-position
-    uint8_t fineX = (x + 7 - wx) & 0x07;
-
-    // render pixel
-    uint8_t tile = winReadTilemap(x, y);
-    uint8_t tileDataLo = winGetTileData(tile, y, 0);
-    uint8_t tileDataHi = winGetTileData(tile, y, 1);
-    uint8_t pxLo = (tileDataLo >> (fineX ^ 0x07)) & 1;
-    uint8_t pxHi = (tileDataHi >> (fineX ^ 0x07)) & 1;
-    bgBuffer[x] = pxHi << 1 | pxLo;
+  switch(bgStep) {
+  case 0: bgStep++;                                          break;
+  case 1: bgStep++; bgTile   = bgReadTilemap(lx, ly);        break;
+  case 2: bgStep++;                                          break;
+  case 3: bgStep++; bgDataLo = bgGetTileData(bgTile, ly, 0); break;
+  case 4: bgStep++;                                          break;
+  case 5: bgStep++; bgDataHi = bgGetTileData(bgTile, ly, 1); break;
+  case 6:
+    // insert data into FIFO, if possible
+    if(!bgFifoSize) {
+      bgFifoSize = 8;
+      bgFifoLo = bgDataLo;
+      bgFifoHi = bgDataHi;
+      lx += 8;
+      bgStep = 0;
+    }
+    break;
   }
-  if(wx < 167) yWinCount++;
 }
 
 void PPU::renderSprites(uint8_t y) {
