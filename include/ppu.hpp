@@ -74,6 +74,7 @@ private:
   bool irqSTAT;
   uint8_t lx;
   int xOut;
+  bool rendering;
 
   // Scanline renderer state
   uint8_t objBuffer[160];

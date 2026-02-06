@@ -38,6 +38,9 @@ void PPU::ppuTick() {
   scanCycle++;
 
   if(ly < 144 && scanCycle == 80) {
+    // enter mode 3
+    rendering = true;
+
     // reset BG FIFO
     xOut = 0 - (scx & 0x07);
     lx = 0;
@@ -49,7 +52,8 @@ void PPU::ppuTick() {
     if(lcdc & 0x02) renderSprites(ly);
   }
 
-  if(ly < 144 && scanCycle >= 80) {
+  // todo: include the PPU activity from cycle 80-85
+  if(ly < 144 && scanCycle >= 86 && rendering) {
     // start window, if reached
     // todo: this should actually occur after shifting out 1 pixel
     if(!bgIsWin && (lcdc & 0x20) && ly >= wy && (xOut + 7) >= wx) {
@@ -79,6 +83,7 @@ void PPU::ppuTick() {
         plotPixel(xOut, ly, colour);
       }
       xOut++;
+      if(xOut == 160) rendering = false;
     }
   }
 
@@ -97,10 +102,10 @@ void PPU::ppuTick() {
 
   bool irqPrevSTAT = irqSTAT;
   irqSTAT = false;
-  if((stat & 0x40) && ly == lyc                    ) irqSTAT = true;  // LYC
-  if((stat & 0x20) && ly <= 144 && scanCycle <   80) irqSTAT = true;  // mode 2
-  if((stat & 0x10) && ly >= 144                    ) irqSTAT = true;  // mode 1
-  if((stat & 0x08) && ly <  144 && scanCycle >= 252) irqSTAT = true;  // mode 0
+  if((stat & 0x40) && ly == lyc                                 ) irqSTAT = true;  // LYC
+  if((stat & 0x20) && ly <= 144 && scanCycle <  80              ) irqSTAT = true;  // mode 2
+  if((stat & 0x10) && ly >= 144                                 ) irqSTAT = true;  // mode 1
+  if((stat & 0x08) && ly <  144 && scanCycle >= 80 && !rendering) irqSTAT = true;  // mode 0
   if(irqSTAT && !irqPrevSTAT) irqRaiseSTAT();
 }
 
