@@ -56,11 +56,12 @@ void PPU::ppuTick() {
   if(ly < 144 && scanCycle >= 86 && rendering) {
     // start window, if reached
     // todo: this should actually occur after shifting out 1 pixel
-    if(!bgIsWin && (lcdc & 0x20) && ly >= wy && (xOut + 7) >= wx) {
+    if(!bgIsWin && (lcdc & 0x20) && ly >= wy && (xOut + 7) == wx) {
       lx = 0;
       bgFifoSize = 0;
       bgStep = 0;
       bgIsWin = true;
+      yWinCount++;
     }
 
     // generate pixels
@@ -91,10 +92,9 @@ void PPU::ppuTick() {
     for(uint8_t x = 0; x < 160; x++) objBuffer[x] = 0x00;  // clear sprite buffer
     scanCycle = 0;
     ly++;
-    if(bgIsWin) yWinCount++;
     if(ly == 154) {
       ly = 0;
-      yWinCount = 0;
+      yWinCount = 0xff;
       frame();
     }
     if(ly == 144) irqRaiseVBLANK();
@@ -161,6 +161,7 @@ void PPU::bgTickFIFO() {
       bgFifoHi = bgDataHi;
       lx += 8;
       bgStep = 0;
+      if(!(lcdc & 0x20)) bgIsWin = false;
     }
     break;
   }
