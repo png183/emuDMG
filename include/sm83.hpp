@@ -14,6 +14,10 @@ public:
 
 private:
   void instructionCB();
+  uint8_t regSrcRead();
+  uint8_t regDstRead();
+  void regSrcWrite(uint8_t data);
+  void regDstWrite(uint8_t data);
   void runISR(uint16_t addr);
   void write16(uint16_t addr, uint16_t data);
   uint8_t fetch8();
@@ -36,8 +40,8 @@ private:
   bool HF();
   bool CF();
 
-  uint8_t INC(uint8_t data);
-  uint8_t DEC(uint8_t data);
+  void INC();
+  void DEC();
   void RLCA();
   void RRCA();
   void RLA();
@@ -69,17 +73,17 @@ private:
   void DI();
   void EI();
 
-  uint8_t RLC(uint8_t data);
-  uint8_t RRC(uint8_t data);
-  uint8_t RL(uint8_t data);
-  uint8_t RR(uint8_t data);
-  uint8_t SLA(uint8_t data);
-  uint8_t SRA(uint8_t data);
-  uint8_t SWAP(uint8_t data);
-  uint8_t SRL(uint8_t data);
-  void BIT(uint8_t bit, uint8_t data);
-  uint8_t RES(uint8_t bit, uint8_t data);
-  uint8_t SET(uint8_t bit, uint8_t data);
+  void RLC();
+  void RRC();
+  void RL();
+  void RR();
+  void SLA();
+  void SRA();
+  void SWAP();
+  void SRL();
+  void BIT();
+  void RES();
+  void SET();
 
   void HCF();
 
@@ -93,6 +97,7 @@ private:
   uint8_t l;
   uint16_t pc;
   uint16_t sp;
+  uint8_t ir;
   bool ime[2];
   uint8_t _if;
   uint8_t _ie;
