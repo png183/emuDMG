@@ -49,7 +49,8 @@ void PPU::ppuTick() {
     bgIsWin = false;
 
     // run sprite scanline renderer
-    if(lcdc & 0x02) renderSprites(ly);
+    oamScan();
+    if(lcdc & 0x02) renderSprites();
   }
 
   // todo: include the PPU activity from cycle 80-85
@@ -124,15 +125,36 @@ uint8_t PPU::STAT() {
   return data;
 }
 
-uint8_t PPU::bgReadTilemap(uint8_t x, uint8_t y) {
-  uint8_t tileY = bgIsWin ? (yWinCount >> 3) : ((uint8_t)(y + scy) >> 3);
+void PPU::oamScan() {
+  // clear OAM buffer
+  for(int i = 0; i < 40; i++) spriteBuffer[i] = 0xff;
+
+  // calculate sprite height
+  uint8_t spriteHeight = (lcdc & 0x04) ? 16 : 8;
+
+  // perform OAM scan
+  uint8_t bufSize = 0;
+  for(int i = 0; i < 160; i += 4) {
+    uint8_t dataY = ly + 16 - oam[i + 0];
+    if(dataY >= spriteHeight) continue;
+    spriteBuffer[bufSize + 0] = oam[i + 0];
+    spriteBuffer[bufSize + 1] = oam[i + 1];
+    spriteBuffer[bufSize + 2] = oam[i + 2];
+    spriteBuffer[bufSize + 3] = oam[i + 3];
+    bufSize += 4;
+    if(bufSize >= 40) break;
+  }
+}
+
+uint8_t PPU::bgReadTilemap(uint8_t x) {
+  uint8_t tileY = bgIsWin ? (yWinCount >> 3) : ((uint8_t)(ly + scy) >> 3);
   uint8_t tileX = bgIsWin ? (x >> 3) : ((uint8_t)(x + scx) >> 3);
   uint16_t baseAddr = (bgIsWin ? (lcdc & 0x40) : (lcdc & 0x08)) ? 0x1c00 : 0x1800;
   return vram[baseAddr | tileY << 5 | tileX];
 }
 
-uint8_t PPU::bgGetTileData(uint8_t tile, uint8_t y, uint8_t bitLoHi) {
-  uint8_t fineY = bgIsWin ? (yWinCount & 0x07) : (y + scy) & 0x07;
+uint8_t PPU::bgGetTileData(uint8_t tile, uint8_t bitLoHi) {
+  uint8_t fineY = bgIsWin ? (yWinCount & 0x07) : (ly + scy) & 0x07;
   uint16_t baseAddr = (!(lcdc & 0x10) && !(tile & 0x80)) ? 0x1000 : 0x0000;
   return vram[baseAddr | tile << 4 | fineY << 1 | bitLoHi];
 }
@@ -147,12 +169,12 @@ void PPU::bgTickFIFO() {
   }
 
   switch(bgStep) {
-  case 0: bgStep++;                                          break;
-  case 1: bgStep++; bgTile   = bgReadTilemap(lx, ly);        break;
-  case 2: bgStep++;                                          break;
-  case 3: bgStep++; bgDataLo = bgGetTileData(bgTile, ly, 0); break;
-  case 4: bgStep++;                                          break;
-  case 5: bgStep++; bgDataHi = bgGetTileData(bgTile, ly, 1); break;
+  case 0: bgStep++;                                      break;
+  case 1: bgStep++; bgTile   = bgReadTilemap(lx);        break;
+  case 2: bgStep++;                                      break;
+  case 3: bgStep++; bgDataLo = bgGetTileData(bgTile, 0); break;
+  case 4: bgStep++;                                      break;
+  case 5: bgStep++; bgDataHi = bgGetTileData(bgTile, 1); break;
   case 6:
     // insert data into FIFO, if possible
     if(!bgFifoSize) {
@@ -167,31 +189,17 @@ void PPU::bgTickFIFO() {
   }
 }
 
-void PPU::renderSprites(uint8_t y) {
+void PPU::renderSprites() {
   // calculate sprite height
   uint8_t spriteHeight = (lcdc & 0x04) ? 16 : 8;
 
-  // perform OAM scan
-  uint8_t spriteBuffer[40];
-  uint8_t bufSize = 0;
-  for(uint8_t i = 0; i < 160; i += 4) {
-    uint8_t dataY = y + 16 - oam[i + 0];
-    if(dataY >= spriteHeight) continue;
-    spriteBuffer[bufSize + 0] = oam[i + 0];
-    spriteBuffer[bufSize + 1] = oam[i + 1];
-    spriteBuffer[bufSize + 2] = oam[i + 2];
-    spriteBuffer[bufSize + 3] = oam[i + 3];
-    bufSize += 4;
-    if(bufSize >= 40) break;
-  }
-
   for(int x = -8; x < 160; x++) {
     // check x-coordinate of all buffered sprites
-    for(uint8_t i = 0; i < bufSize; i += 4) {
+    for(int i = 0; i < 40; i += 4) {
       uint8_t dataX = spriteBuffer[i + 1];
       if((x + 8) == dataX) {
         // fetch tile data
-        uint8_t dataY = y + 16 - spriteBuffer[i + 0];
+        uint8_t dataY = ly + 16 - spriteBuffer[i + 0];
         uint8_t tile = spriteBuffer[i + 2];
         uint8_t attributes = spriteBuffer[i + 3];
         uint8_t fineY = dataY & (spriteHeight - 1);

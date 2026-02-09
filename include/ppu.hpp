@@ -39,11 +39,11 @@ public:
 
 private:
   uint8_t STAT();
-  uint8_t bgReadTilemap(uint8_t x, uint8_t y);
-  uint8_t bgGetTileData(uint8_t tile, uint8_t y, uint8_t bitLoHi);
+  void oamScan();
+  uint8_t bgReadTilemap(uint8_t x);
+  uint8_t bgGetTileData(uint8_t tile, uint8_t bitLoHi);
   void bgTickFIFO();
-  void renderWindow(uint8_t y);
-  void renderSprites(uint8_t y);
+  void renderSprites();
 
   // PPU registers
   uint8_t lcdc;
@@ -67,6 +67,9 @@ private:
   uint8_t bgFifoSize;
   uint8_t bgStep;
   bool bgIsWin;
+
+  // OAM buffer
+  uint8_t spriteBuffer[40];
 
   // PPU internal state
   int scanCycle;
