@@ -1,30 +1,27 @@
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #include "dmg.hpp"
 
 class Emulator : public DMG {
 public:
   Emulator() {
-    SDL_Init(SDL_INIT_EVERYTHING);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     framebuffer = new uint32_t[width * height]();
-    window = SDL_CreateWindow("emuDMG", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width * scale, height * scale, SDL_WINDOW_SHOWN);
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    window = SDL_CreateWindow("emuDMG", width * scale, height * scale, 0);
+    renderer = SDL_CreateRenderer(window, NULL);
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, width, height);
+    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
 
     //init audio
-    SDL_AudioSpec audioSpecRequested;
     SDL_AudioSpec audioSpec;
-    audioSpecRequested.freq = 32768;
-    audioSpecRequested.format = AUDIO_S16SYS;
-    audioSpecRequested.channels = 1;
-    audioSpecRequested.samples = audioBufferSize;
-    audioSpecRequested.callback = NULL;  //no callback
-    audioSpecRequested.userdata = NULL;  //no parameter to callback
-    audioOut = SDL_OpenAudioDevice(NULL, 0, &audioSpecRequested, &audioSpec, SDL_AUDIO_ALLOW_ANY_CHANGE);
-    SDL_PauseAudioDevice(audioOut, 0);
+    audioSpec.freq = 32768;
+    audioSpec.format = SDL_AUDIO_S16;
+    audioSpec.channels = 1;
+    audioOut = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audioSpec, NULL, NULL);
+    SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(audioOut));
   }
 
   ~Emulator() {
-    SDL_CloseAudioDevice(audioOut);
+    SDL_CloseAudioDevice(SDL_GetAudioStreamDevice(audioOut));
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
@@ -81,7 +78,7 @@ public:
       case 0x04: cartRamMask = 0x1ffff; break;
       case 0x05: cartRamMask = 0x0ffff; break;
       default:
-        printf("Warning: Cartridge header specifies RAM without quantity (0x%02x)\n");
+        printf("Warning: Cartridge header specifies RAM without quantity (0x%02x)\n", cartRom[0x0149]);
         hasRam = false;
         break;
       }
@@ -117,14 +114,14 @@ public:
   void frame() override {
     //draw frame
     SDL_UpdateTexture(texture, NULL, framebuffer, 4 * width);
-    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderTexture(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
 
     //check for window closing
     SDL_Event event;
     while(SDL_PollEvent(&event)) {
       switch(event.type) {
-      case SDL_QUIT:
+      case SDL_EVENT_QUIT:
         save();
         exit(0);
         return;
@@ -140,7 +137,7 @@ public:
   uint8_t pollButtons() override {
     //todo: support alternate key bindings
     uint8_t data = 0xff;
-    const uint8_t* keys = SDL_GetKeyboardState(NULL);
+    const bool* keys = SDL_GetKeyboardState(NULL);
     if(keys[SDL_SCANCODE_RETURN]) data &= ~0x08;  //START
     if(keys[SDL_SCANCODE_SPACE ]) data &= ~0x04;  //SELECT
     if(keys[SDL_SCANCODE_S     ]) data &= ~0x02;  //B
@@ -151,7 +148,7 @@ public:
   uint8_t pollDpad() override {
     //todo: support alternate key bindings
     uint8_t data = 0xff;
-    const uint8_t* keys = SDL_GetKeyboardState(NULL);
+    const bool* keys = SDL_GetKeyboardState(NULL);
     if(keys[SDL_SCANCODE_DOWN]) {
       data &= ~0x08;  //DOWN
     } else if(keys[SDL_SCANCODE_UP]) {
@@ -175,10 +172,10 @@ public:
     static int outCnt = 0;
     outCnt++;
     if(!(outCnt & 0x1f)) {
-      while(SDL_GetQueuedAudioSize(audioOut) > (audioBufferSize * 2)) {
+      while(SDL_GetAudioStreamQueued(audioOut) > (audioBufferSize * 2)) {
         SDL_Delay(1);  //prevent running too far ahead of audio
       }
-      SDL_QueueAudio(audioOut, &sample, sizeof(int16_t));
+      SDL_PutAudioStreamData(audioOut, &sample, sizeof(int16_t));
     }
   }
 
@@ -191,7 +188,7 @@ private:
   SDL_Window* window;
   SDL_Renderer* renderer;
   SDL_Texture* texture;
-  SDL_AudioDeviceID audioOut;
+  SDL_AudioStream* audioOut;
 
   char* savePath;
   Cart* cart;
